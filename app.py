@@ -8,34 +8,30 @@ with open("iso8583_ghana_only.json") as f:
     spec = json.load(f)
 data_elements = spec["data_elements"]
 
-# Regex to capture FLD lines from trace file
 fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)\s+\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def validate_field(field_num, length, value, mti):
     rule = data_elements.get(field_num)
     if not rule:
         return None
-
     usage = rule.get("Usage", {})
     if usage.get("all") == "M" or usage.get(mti) == "M":
         if not value:
             return f"Missing mandatory field {field_num}"
-
     expected_length = rule["Length"]
     if expected_length.isdigit():
         if len(value) != int(expected_length):
             return f"Invalid length: expected {expected_length}, got {len(value)}"
-
     fmt = rule["Format"]
     if fmt == "n" and not value.isdigit():
         return f"Invalid format: expected numeric"
     if fmt == "an" and not value.isalnum():
         return f"Invalid format: expected alphanumeric"
-
     if field_num == "39":
         if value not in ["00", "01", "02"]:
             return f"Invalid response code: {value}"
-
     return None
 
 def get_mandatory_fields(mti):
@@ -46,27 +42,23 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Ghana Profile)")
+st.title("ISO8583 Trace File Validator (Nested Field Support)")
 
-uploaded_files = st.file_uploader(
-    "Upload one or more trace files",
-    accept_multiple_files=True
-)
+uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
         st.subheader(f"Results for {uploaded_file.name}")
-
-        # Dictionary to store MTIs and their field values
         mtis = {}
         current_mti = None
+        nested_field = None
+        nested_data = {}
 
-        # Decode lines with fallback encoding
         for line_num, line in enumerate(uploaded_file, 1):
             try:
                 line = line.decode("utf-8")
             except UnicodeDecodeError:
-                line = line.decode("latin-1")  # fallback for Windows-encoded files
+                line = line.decode("latin-1")
 
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
@@ -75,23 +67,50 @@ if uploaded_files:
                     if current_mti not in mtis:
                         mtis[current_mti] = {}
 
+            # Start of nested field
+            if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
+                fld_match = nested_start_pattern.search(line)
+                if fld_match and current_mti:
+                    nested_field = fld_match.group(1)
+                    nested_data = {}
+                    mtis[current_mti][nested_field] = nested_data
+                continue
+
+            # Nested line
+            if nested_field and line.strip().startswith(">"):
+                tag_match = nested_line_pattern.search(line)
+                if tag_match:
+                    tag, value = tag_match.groups()
+                    nested_data[tag.strip()] = value.strip()
+                continue
+
+            # Reset nested field
+            if "FLD" in line and not line.strip().startswith(">"):
+                nested_field = None
+
+            # Regular field
             match = fld_pattern.search(line)
             if match and current_mti:
                 field_num, length, value = match.groups()
                 mtis[current_mti][field_num] = value.strip()
 
-        # Global summary counters
+        # 🔍 Show raw MTI and field dump
+        st.write("### Raw MTI and Field Dump")
+        for mti, fields in mtis.items():
+            st.write(f"**MTI {mti}** → {len(fields)} fields captured")
+            st.json(fields)
+
+        # Validation phase
         total_mtis = 0
         mtis_with_errors = 0
         mtis_clean = 0
 
-        # Process each MTI separately
         for mti, field_values in mtis.items():
             if mti in ["0800", "0810", "0820"]:
-                continue  # skip network management MTIs
+                continue
 
             total_mtis += 1
-            st.write(f"### MTI {mti}")
+            st.write(f"### MTI {mti} Validation")
             mandatory_fields = get_mandatory_fields(mti)
             mandatory_data = []
             passed_count, failed_count = 0, 0
@@ -100,85 +119,48 @@ if uploaded_files:
 
             for f in mandatory_fields:
                 value = field_values.get(f)
-                if value:
+                if isinstance(value, dict):
+                    display_value = f"{len(value)} nested items"
+                    mandatory_data.append({"Field": f"DE {f}", "Value": display_value, "Validation": "✅ Nested field captured"})
+                    passed_count += 1
+                    available_count += 1
+                elif value:
                     available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti)
                     if not issue:
-                        mandatory_data.append({
-                            "Field": f"DE {f}",
-                            "Value": value,
-                            "Validation": "✅ Passed"
-                        })
+                        mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": "✅ Passed"})
                         passed_count += 1
                     else:
-                        mandatory_data.append({
-                            "Field": f"DE {f}",
-                            "Value": value,
-                            "Validation": f"❌ {issue}"
-                        })
+                        mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": f"❌ {issue}"})
                         failed_count += 1
                         errors.append({"Field": f, "Value": value, "Issue": issue})
                 else:
                     missing_count += 1
-                    mandatory_data.append({
-                        "Field": f"DE {f}",
-                        "Value": "❌ Missing",
-                        "Validation": "❌ Missing mandatory field"
-                    })
+                    mandatory_data.append({"Field": f"DE {f}", "Value": "❌ Missing", "Validation": "❌ Missing mandatory field"})
                     failed_count += 1
                     errors.append({"Field": f, "Value": "❌ Missing", "Issue": "Missing mandatory field"})
 
-            # Summary panel for this MTI
             st.info(
                 f"Summary for MTI {mti}: {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"
             )
 
-            # Update global counters
             if failed_count > 0:
                 mtis_with_errors += 1
             else:
                 mtis_clean += 1
 
-            # Mandatory fields table with color highlights
             df_mandatory = pd.DataFrame(mandatory_data)
 
             def highlight_validation(val):
                 if "✅" in val:
-                    return "background-color: #d4edda; color: #155724"  # green
+                    return "background-color: #d4edda; color: #155724"
                 else:
-                    return "background-color: #f8d7da; color: #721c24"  # red
+                    return "background-color: #f8d7da; color: #721c24"
 
-            st.write("Mandatory Fields and Validation Status:")
             st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
 
-            # CSV download for mandatory fields
-            csv = df_mandatory.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label=f"Download Mandatory Field Report for MTI {mti} as CSV",
-                data=csv,
-                file_name=f"{uploaded_file.name}_MTI{mti}_mandatory_fields.csv",
-                mime="text/csv"
-            )
-
-            if errors:
-                st.write("Detailed Validation Errors:")
-                df_errors = pd.DataFrame(errors)
-                st.dataframe(df_errors)
-
-                # CSV download for errors
-                csv_errors = df_errors.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label=f"Download Error Report for MTI {mti} as CSV",
-                    data=csv_errors,
-                    file_name=f"{uploaded_file.name}_MTI{mti}_errors.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.success(f"No validation errors found for MTI {mti} ✅")
-
-        # Global summary at the bottom
         st.write("---")
         st.success(
             f"Global Summary: File contained {total_mtis} MTIs — "

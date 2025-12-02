@@ -1,0 +1,364 @@
+{
+  "country": "Ghana",
+  "iso_country_code": "288",
+  "currency_code": "936",
+  "generated_at": "2025-12-02T13:22:05.258071Z",
+  "mtis": [
+    "0100",
+    "0110",
+    "0200",
+    "0210",
+    "0400",
+    "0410",
+    "0420",
+    "0800",
+    "0810"
+  ],
+  "data_elements": {
+    "MTI": {
+      "DE": "MTI",
+      "Name": "Message Type Identifier",
+      "Format": "n",
+      "Length": "4",
+      "Notes": "Fixed 4 digits",
+      "Usage": {
+        "0100": "M",
+        "0110": "M",
+        "0200": "M",
+        "0210": "M",
+        "0400": "M",
+        "0410": "M",
+        "0420": "M",
+        "0800": "M",
+        "0810": "M"
+      }
+    },
+    "2": {
+      "DE": "2",
+      "Name": "Primary Account Number",
+      "Format": "n",
+      "Length": "LLVAR(13\u201319)",
+      "Notes": "Card PAN",
+      "Usage": {
+        "0100": "M",
+        "0200": "M",
+        "0400": "M"
+      }
+    },
+    "3": {
+      "DE": "3",
+      "Name": "Processing Code",
+      "Format": "n",
+      "Length": "6",
+      "Notes": "Txn + Account Type",
+      "Usage": {
+        "0100": "M",
+        "0200": "M",
+        "0400": "M"
+      }
+    },
+    "4": {
+      "DE": "4",
+      "Name": "Amount, Transaction",
+      "Format": "n",
+      "Length": "12",
+      "Notes": "Amount in GHS",
+      "Usage": {
+        "0100": "M",
+        "0200": "M",
+        "0400": "M"
+      }
+    },
+    "7": {
+      "DE": "7",
+      "Name": "Transmission Date/Time",
+      "Format": "n",
+      "Length": "10",
+      "Notes": "mmddhhmmss",
+      "Usage": {
+        "all": "M"
+      }
+    },
+    "11": {
+      "DE": "11",
+      "Name": "System Trace Audit Number",
+      "Format": "n",
+      "Length": "6",
+      "Notes": "Unique per day",
+      "Usage": {
+        "all": "M"
+      }
+    },
+    "12": {
+      "DE": "12",
+      "Name": "Local Time",
+      "Format": "n",
+      "Length": "6",
+      "Notes": "hhmmss",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "13": {
+      "DE": "13",
+      "Name": "Local Date",
+      "Format": "n",
+      "Length": "4",
+      "Notes": "MMDD",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "14": {
+      "DE": "14",
+      "Name": "Expiration Date",
+      "Format": "n",
+      "Length": "4",
+      "Notes": "YYMM",
+      "Usage": {
+        "0100": "C",
+        "0200": "C"
+      }
+    },
+    "18": {
+      "DE": "18",
+      "Name": "Merchant Category Code",
+      "Format": "n",
+      "Length": "4",
+      "Notes": "MCC",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "19": {
+      "DE": "19",
+      "Name": "Acquirer Country Code",
+      "Format": "n",
+      "Length": "3",
+      "Notes": "Always 288 for Ghana",
+      "Usage": {
+        "all": "M"
+      }
+    },
+    "22": {
+      "DE": "22",
+      "Name": "POS Entry Mode",
+      "Format": "n",
+      "Length": "3",
+      "Notes": "Chip/Mag/PIN Entry",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "25": {
+      "DE": "25",
+      "Name": "POS Condition Code",
+      "Format": "n",
+      "Length": "2",
+      "Notes": "Normal/Refund/Reversal",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "32": {
+      "DE": "32",
+      "Name": "Acquiring Institution ID",
+      "Format": "n",
+      "Length": "LLVAR",
+      "Notes": "GhIPSS or Member Bank ID",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "35": {
+      "DE": "35",
+      "Name": "Track 2 Data",
+      "Format": "z",
+      "Length": "LLVAR",
+      "Notes": "Magstripe fallback",
+      "Usage": {
+        "0100": "C",
+        "0200": "C"
+      }
+    },
+    "37": {
+      "DE": "37",
+      "Name": "Retrieval Reference Number",
+      "Format": "an",
+      "Length": "12",
+      "Notes": "Unique reference",
+      "Usage": {
+        "all": "M"
+      }
+    },
+    "38": {
+      "DE": "38",
+      "Name": "Authorization Code",
+      "Format": "ans",
+      "Length": "6",
+      "Notes": "Issuer approval",
+      "Usage": {
+        "0110": "M",
+        "0210": "M",
+        "0410": "M"
+      }
+    },
+    "39": {
+      "DE": "39",
+      "Name": "Response Code",
+      "Format": "an",
+      "Length": "2",
+      "Notes": "00 = Approved",
+      "Usage": {
+        "responses": "M"
+      }
+    },
+    "41": {
+      "DE": "41",
+      "Name": "Terminal ID",
+      "Format": "ans",
+      "Length": "8",
+      "Notes": "POS/ATM ID",
+      "Usage": {
+        "0100": "M",
+        "0200": "M",
+        "responses": "M"
+      }
+    },
+    "42": {
+      "DE": "42",
+      "Name": "Merchant ID",
+      "Format": "ans",
+      "Length": "15",
+      "Notes": "POS Merchant ID",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "49": {
+      "DE": "49",
+      "Name": "Currency Code",
+      "Format": "n",
+      "Length": "3",
+      "Notes": "936 = GHS",
+      "Usage": {
+        "0100": "M",
+        "0200": "M"
+      }
+    },
+    "52": {
+      "DE": "52",
+      "Name": "Encrypted PIN Block",
+      "Format": "b",
+      "Length": "16",
+      "Notes": "Mandatory for PIN Txns",
+      "Usage": {
+        "0100": "C",
+        "0200": "C"
+      }
+    },
+    "54": {
+      "DE": "54",
+      "Name": "Additional Amount (Cashback)",
+      "Format": "an",
+      "Length": "LLLVAR",
+      "Notes": "POS Cashback",
+      "Usage": {
+        "0200": "C"
+      }
+    },
+    "55": {
+      "DE": "55",
+      "Name": "EMV ICC Data",
+      "Format": "b",
+      "Length": "LLLVAR",
+      "Notes": "Chip Transactions",
+      "Usage": {
+        "0100": "C",
+        "0200": "C"
+      }
+    },
+    "60": {
+      "DE": "60",
+      "Name": "Reserved Private Field",
+      "Format": "ans",
+      "Length": "LLLVAR",
+      "Notes": "Switch specific",
+      "Usage": {
+        "0200": "C"
+      }
+    },
+    "61": {
+      "DE": "61",
+      "Name": "POS Data",
+      "Format": "ans",
+      "Length": "LLLVAR",
+      "Notes": "Terminal environment",
+      "Usage": {
+        "0200": "C"
+      }
+    },
+    "62": {
+      "DE": "62",
+      "Name": "Network Data",
+      "Format": "ans",
+      "Length": "LLLVAR",
+      "Notes": "Gh-Link routing",
+      "Usage": {
+        "0200": "C"
+      }
+    },
+    "70": {
+      "DE": "70",
+      "Name": "Network Management Code",
+      "Format": "n",
+      "Length": "3",
+      "Notes": "Sign-on/Echo",
+      "Usage": {
+        "0800": "M",
+        "0810": "M"
+      }
+    },
+    "90": {
+      "DE": "90",
+      "Name": "Original Data Elements",
+      "Format": "n",
+      "Length": "42",
+      "Notes": "Mandatory for reversals",
+      "Usage": {
+        "0400": "M",
+        "0420": "M"
+      }
+    },
+    "100": {
+      "DE": "100",
+      "Name": "Receiving Inst ID",
+      "Format": "n",
+      "Length": "LLVAR",
+      "Notes": "Processor / GhIPSS",
+      "Usage": {
+        "0200": "M",
+        "0400": "M"
+      }
+    },
+    "126": {
+      "DE": "126",
+      "Name": "Switch Private Data",
+      "Format": "ans",
+      "Length": "LLLVAR",
+      "Notes": "GhIPSS / Bank routing data",
+      "Usage": {
+        "0100": "M",
+        "0200": "M",
+        "0400": "M"
+      }
+    }
+  }
+}

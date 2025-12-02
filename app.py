@@ -56,9 +56,10 @@ uploaded_files = st.file_uploader(
 if uploaded_files:
     for uploaded_file in uploaded_files:
         st.subheader(f"Results for {uploaded_file.name}")
-        errors = []
-        field_values = {}
-        mti = None
+
+        # Dictionary to store MTIs and their field values
+        mtis = {}
+        current_mti = None
 
         # Decode lines with fallback encoding
         for line_num, line in enumerate(uploaded_file, 1):
@@ -70,26 +71,31 @@ if uploaded_files:
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
                 if mti_match:
-                    mti = mti_match.group(1)
+                    current_mti = mti_match.group(1)
+                    if current_mti not in mtis:
+                        mtis[current_mti] = {}
 
             match = fld_pattern.search(line)
-            if match:
+            if match and current_mti:
                 field_num, length, value = match.groups()
-                field_values[field_num] = value.strip()
-                error = validate_field(field_num, length, value.strip(), mti)
-                if error:
-                    errors.append({
-                        "Line": line_num,
-                        "Field": field_num,
-                        "Value": value.strip(),
-                        "Issue": error
-                    })
+                mtis[current_mti][field_num] = value.strip()
 
-        if mti:
-            st.write(f"Detected MTI: `{mti}`")
+        # Global summary counters
+        total_mtis = 0
+        mtis_with_errors = 0
+        mtis_clean = 0
+
+        # Process each MTI separately
+        for mti, field_values in mtis.items():
+            if mti in ["0800", "0810", "0820"]:
+                continue  # skip network management MTIs
+
+            total_mtis += 1
+            st.write(f"### MTI {mti}")
             mandatory_fields = get_mandatory_fields(mti)
             mandatory_data = []
             passed_count, failed_count = 0, 0
+            errors = []
 
             for f in mandatory_fields:
                 value = field_values.get(f)
@@ -109,6 +115,7 @@ if uploaded_files:
                             "Validation": f"❌ {issue}"
                         })
                         failed_count += 1
+                        errors.append({"Field": f, "Value": value, "Issue": issue})
                 else:
                     mandatory_data.append({
                         "Field": f"DE {f}",
@@ -116,12 +123,19 @@ if uploaded_files:
                         "Validation": "❌ Missing mandatory field"
                     })
                     failed_count += 1
+                    errors.append({"Field": f, "Value": "❌ Missing", "Issue": "Missing mandatory field"})
 
-            # Summary panel
-            st.info(f"Summary: {len(mandatory_fields)} mandatory fields checked — "
+            # Summary panel for this MTI
+            st.info(f"Summary for MTI {mti}: {len(mandatory_fields)} mandatory fields checked — "
                     f"{passed_count} passed, {failed_count} failed")
 
-            # Mandatory fields table with color highlights (using Styler.map)
+            # Update global counters
+            if failed_count > 0:
+                mtis_with_errors += 1
+            else:
+                mtis_clean += 1
+
+            # Mandatory fields table with color highlights
             df_mandatory = pd.DataFrame(mandatory_data)
 
             def highlight_validation(val):
@@ -136,24 +150,28 @@ if uploaded_files:
             # CSV download for mandatory fields
             csv = df_mandatory.to_csv(index=False).encode("utf-8")
             st.download_button(
-                label="Download Mandatory Field Report as CSV",
+                label=f"Download Mandatory Field Report for MTI {mti} as CSV",
                 data=csv,
-                file_name=f"{uploaded_file.name}_mandatory_fields.csv",
+                file_name=f"{uploaded_file.name}_MTI{mti}_mandatory_fields.csv",
                 mime="text/csv"
             )
 
-        if errors:
-            st.write("Detailed Validation Errors:")
-            df_errors = pd.DataFrame(errors)
-            st.dataframe(df_errors)
+            if errors:
+                st.write("Detailed Validation Errors:")
+                df_errors = pd.DataFrame(errors)
+                st.dataframe(df_errors)
 
-            # CSV download for errors
-            csv_errors = df_errors.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Download Error Report as CSV",
-                data=csv_errors,
-                file_name=f"{uploaded_file.name}_errors.csv",
-                mime="text/csv"
-            )
-        else:
-            st.success("No validation errors found ✅")
+                # CSV download for errors
+                csv_errors = df_errors.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label=f"Download Error Report for MTI {mti} as CSV",
+                    data=csv_errors,
+                    file_name=f"{uploaded_file.name}_MTI{mti}_errors.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.success(f"No validation errors found for MTI {mti} ✅")
+
+        # Global summary at the top
+        st.write("---")
+        st.success(f"Global Summary: File contained {total_mtis} MTIs — {mtis_clean} clean, {mtis_with_errors} with errors")

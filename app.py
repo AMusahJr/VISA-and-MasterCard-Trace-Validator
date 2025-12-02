@@ -95,11 +95,13 @@ if uploaded_files:
             mandatory_fields = get_mandatory_fields(mti)
             mandatory_data = []
             passed_count, failed_count = 0, 0
+            available_count, missing_count = 0, 0
             errors = []
 
             for f in mandatory_fields:
                 value = field_values.get(f)
                 if value:
+                    available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti)
                     if not issue:
                         mandatory_data.append({
@@ -117,6 +119,7 @@ if uploaded_files:
                         failed_count += 1
                         errors.append({"Field": f, "Value": value, "Issue": issue})
                 else:
+                    missing_count += 1
                     mandatory_data.append({
                         "Field": f"DE {f}",
                         "Value": "❌ Missing",
@@ -126,8 +129,11 @@ if uploaded_files:
                     errors.append({"Field": f, "Value": "❌ Missing", "Issue": "Missing mandatory field"})
 
             # Summary panel for this MTI
-            st.info(f"Summary for MTI {mti}: {len(mandatory_fields)} mandatory fields checked — "
-                    f"{passed_count} passed, {failed_count} failed")
+            st.info(
+                f"Summary for MTI {mti}: {len(mandatory_fields)} mandatory fields — "
+                f"{available_count} available, {missing_count} missing; "
+                f"{passed_count} passed, {failed_count} failed"
+            )
 
             # Update global counters
             if failed_count > 0:
@@ -172,6 +178,9 @@ if uploaded_files:
             else:
                 st.success(f"No validation errors found for MTI {mti} ✅")
 
-        # Global summary at the top
+        # Global summary at the bottom
         st.write("---")
-        st.success(f"Global Summary: File contained {total_mtis} MTIs — {mtis_clean} clean, {mtis_with_errors} with errors")
+        st.success(
+            f"Global Summary: File contained {total_mtis} MTIs — "
+            f"{mtis_clean} clean, {mtis_with_errors} with errors"
+        )

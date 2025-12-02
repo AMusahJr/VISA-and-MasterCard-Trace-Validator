@@ -43,7 +43,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Message‑Instance Mode)")
+st.title("ISO8583 Trace File Validator (Message‑Instance Mode + MTI Summary)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -101,12 +101,24 @@ if uploaded_files:
                 field_num, length, value = match.groups()
                 current_message["fields"][field_num] = value.strip()
 
-        # 🔍 Show raw dump of all messages
-        st.write("### Raw Message Dump")
-        st.write(f"Total messages parsed: {len(messages)}")
-        for i, msg in enumerate(messages[:10]):  # show first 10 for sanity check
-            st.write(f"Message {i+1} → MTI {msg['mti']}, {len(msg['fields'])} fields")
-            st.json(msg["fields"])
+        # 🔍 Show MTI counts
+        mti_counts = {}
+        for msg in messages:
+            mti = msg["mti"]
+            mti_counts[mti] = mti_counts.get(mti, 0) + 1
+
+        st.write("### MTI Counts in File")
+        df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
+        st.dataframe(df_counts)
+
+        # CSV download for MTI counts
+        csv_counts = df_counts.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download MTI Count Summary as CSV",
+            data=csv_counts,
+            file_name=f"{uploaded_file.name}_MTI_counts.csv",
+            mime="text/csv"
+        )
 
         # Validation phase
         total_mtis = 0

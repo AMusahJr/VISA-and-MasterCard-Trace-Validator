@@ -8,6 +8,7 @@ with open("iso8583_ghana_only.json") as f:
     spec = json.load(f)
 data_elements = spec["data_elements"]
 
+# Regex patterns
 fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)\s+\[(.*?)\]")
 nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
@@ -42,15 +43,17 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Nested Field Support)")
+st.title("ISO8583 Trace File Validator (Message‑Instance Mode)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
         st.subheader(f"Results for {uploaded_file.name}")
-        mtis = {}
-        current_mti = None
+
+        # List of messages, each with its own MTI + fields
+        messages = []
+        current_message = None
         nested_field = None
         nested_data = {}
 
@@ -60,20 +63,24 @@ if uploaded_files:
             except UnicodeDecodeError:
                 line = line.decode("latin-1")
 
+            # Detect MTI start → new message instance
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
                 if mti_match:
                     current_mti = mti_match.group(1)
-                    if current_mti not in mtis:
-                        mtis[current_mti] = {}
+                    current_message = {"mti": current_mti, "fields": {}}
+                    messages.append(current_message)
+                    nested_field = None
+                    nested_data = {}
+                continue
 
-            # Start of nested field
+            # Nested field start
             if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
                 fld_match = nested_start_pattern.search(line)
-                if fld_match and current_mti:
+                if fld_match and current_message:
                     nested_field = fld_match.group(1)
                     nested_data = {}
-                    mtis[current_mti][nested_field] = nested_data
+                    current_message["fields"][nested_field] = nested_data
                 continue
 
             # Nested line
@@ -84,33 +91,37 @@ if uploaded_files:
                     nested_data[tag.strip()] = value.strip()
                 continue
 
-            # Reset nested field
+            # Reset nested field when next FLD starts
             if "FLD" in line and not line.strip().startswith(">"):
                 nested_field = None
 
             # Regular field
             match = fld_pattern.search(line)
-            if match and current_mti:
+            if match and current_message:
                 field_num, length, value = match.groups()
-                mtis[current_mti][field_num] = value.strip()
+                current_message["fields"][field_num] = value.strip()
 
-        # 🔍 Show raw MTI and field dump
-        st.write("### Raw MTI and Field Dump")
-        for mti, fields in mtis.items():
-            st.write(f"**MTI {mti}** → {len(fields)} fields captured")
-            st.json(fields)
+        # 🔍 Show raw dump of all messages
+        st.write("### Raw Message Dump")
+        st.write(f"Total messages parsed: {len(messages)}")
+        for i, msg in enumerate(messages[:10]):  # show first 10 for sanity check
+            st.write(f"Message {i+1} → MTI {msg['mti']}, {len(msg['fields'])} fields")
+            st.json(msg["fields"])
 
         # Validation phase
         total_mtis = 0
         mtis_with_errors = 0
         mtis_clean = 0
 
-        for mti, field_values in mtis.items():
+        for i, msg in enumerate(messages, 1):
+            mti = msg["mti"]
+            field_values = msg["fields"]
+
             if mti in ["0800", "0810", "0820"]:
                 continue
 
             total_mtis += 1
-            st.write(f"### MTI {mti} Validation")
+            st.write(f"### Message {i} (MTI {mti}) Validation")
             mandatory_fields = get_mandatory_fields(mti)
             mandatory_data = []
             passed_count, failed_count = 0, 0
@@ -141,7 +152,7 @@ if uploaded_files:
                     errors.append({"Field": f, "Value": "❌ Missing", "Issue": "Missing mandatory field"})
 
             st.info(
-                f"Summary for MTI {mti}: {len(mandatory_fields)} mandatory fields — "
+                f"Summary for Message {i} (MTI {mti}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"
             )
@@ -163,6 +174,6 @@ if uploaded_files:
 
         st.write("---")
         st.success(
-            f"Global Summary: File contained {total_mtis} MTIs — "
+            f"Global Summary: File contained {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )

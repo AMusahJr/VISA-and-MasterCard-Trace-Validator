@@ -43,7 +43,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Debug Mode)")
+st.title("ISO8583 Trace File Validator (MTI‑to‑END Debug Mode)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -51,7 +51,6 @@ if uploaded_files:
     for uploaded_file in uploaded_files:
         st.subheader(f"Results for {uploaded_file.name}")
 
-        # List of messages, each with its own MTI + fields
         messages = []
         current_message = None
         nested_field = None
@@ -62,11 +61,12 @@ if uploaded_files:
                 line = line.decode("utf-8")
             except UnicodeDecodeError:
                 line = line.decode("latin-1")
+            line = line.strip()
 
             # Debug: show raw line
-            st.text(f"Line {line_num}: {line.strip()}")
+            st.text(f"Line {line_num}: {line}")
 
-            # Detect MTI start → new message instance
+            # Start of new message
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
                 if mti_match:
@@ -76,38 +76,47 @@ if uploaded_files:
                     nested_field = None
                     nested_data = {}
                     st.text(f"--> New MTI detected: {current_mti} (Message {len(messages)})")
-                # Do NOT continue here — allow FLDs to be processed
                 continue
 
-            # Nested field start
-            if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
-                fld_match = nested_start_pattern.search(line)
-                if fld_match and current_message:
-                    nested_field = fld_match.group(1)
-                    nested_data = {}
-                    current_message["fields"][nested_field] = nested_data
-                    st.text(f"--> Nested field start: DE {nested_field}")
-                continue
-
-            # Nested line
-            if nested_field and line.strip().startswith(">"):
-                tag_match = nested_line_pattern.search(line)
-                if tag_match:
-                    tag, value = tag_match.groups()
-                    nested_data[tag.strip()] = value.strip()
-                    st.text(f"   Nested tag captured: {tag.strip()} = {value.strip()}")
-                continue
-
-            # Reset nested field when next FLD starts
-            if "FLD" in line and not line.strip().startswith(">"):
+            # End of current message
+            if "END" in line:
+                st.text(f"--> End of MTI {current_message['mti']} (Message {len(messages)})")
+                current_message = None
                 nested_field = None
+                nested_data = {}
+                continue
 
-            # Regular field
-            match = fld_pattern.search(line)
-            if match and current_message:
-                field_num, length, value = match.groups()
-                current_message["fields"][field_num] = value.strip()
-                st.text(f"--> Field captured: MTI {current_message['mti']} DE {field_num} = {value.strip()}")
+            # If we are inside a message, capture fields
+            if current_message:
+                # Nested field start
+                if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
+                    fld_match = nested_start_pattern.search(line)
+                    if fld_match:
+                        nested_field = fld_match.group(1)
+                        nested_data = {}
+                        current_message["fields"][nested_field] = nested_data
+                        st.text(f"--> Nested field start: DE {nested_field}")
+                    continue
+
+                # Nested line
+                if nested_field and line.startswith(">"):
+                    tag_match = nested_line_pattern.search(line)
+                    if tag_match:
+                        tag, value = tag_match.groups()
+                        nested_data[tag.strip()] = value.strip()
+                        st.text(f"   Nested tag captured: {tag.strip()} = {value.strip()}")
+                    continue
+
+                # Reset nested field when next FLD starts
+                if "FLD" in line and not line.startswith(">"):
+                    nested_field = None
+
+                # Regular field
+                match = fld_pattern.search(line)
+                if match:
+                    field_num, length, value = match.groups()
+                    current_message["fields"][field_num] = value.strip()
+                    st.text(f"--> Field captured: MTI {current_message['mti']} DE {field_num} = {value.strip()}")
 
         # 🔍 Show MTI counts
         mti_counts = {}

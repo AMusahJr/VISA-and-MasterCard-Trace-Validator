@@ -43,7 +43,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Message‑Instance Mode + MTI Summary)")
+st.title("ISO8583 Trace File Validator (Debug Mode)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -63,6 +63,9 @@ if uploaded_files:
             except UnicodeDecodeError:
                 line = line.decode("latin-1")
 
+            # Debug: show raw line
+            st.text(f"Line {line_num}: {line.strip()}")
+
             # Detect MTI start → new message instance
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
@@ -72,6 +75,8 @@ if uploaded_files:
                     messages.append(current_message)
                     nested_field = None
                     nested_data = {}
+                    st.text(f"--> New MTI detected: {current_mti} (Message {len(messages)})")
+                # Do NOT continue here — allow FLDs to be processed
                 continue
 
             # Nested field start
@@ -81,6 +86,7 @@ if uploaded_files:
                     nested_field = fld_match.group(1)
                     nested_data = {}
                     current_message["fields"][nested_field] = nested_data
+                    st.text(f"--> Nested field start: DE {nested_field}")
                 continue
 
             # Nested line
@@ -89,6 +95,7 @@ if uploaded_files:
                 if tag_match:
                     tag, value = tag_match.groups()
                     nested_data[tag.strip()] = value.strip()
+                    st.text(f"   Nested tag captured: {tag.strip()} = {value.strip()}")
                 continue
 
             # Reset nested field when next FLD starts
@@ -100,6 +107,7 @@ if uploaded_files:
             if match and current_message:
                 field_num, length, value = match.groups()
                 current_message["fields"][field_num] = value.strip()
+                st.text(f"--> Field captured: MTI {current_message['mti']} DE {field_num} = {value.strip()}")
 
         # 🔍 Show MTI counts
         mti_counts = {}
@@ -110,15 +118,6 @@ if uploaded_files:
         st.write("### MTI Counts in File")
         df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
         st.dataframe(df_counts)
-
-        # CSV download for MTI counts
-        csv_counts = df_counts.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download MTI Count Summary as CSV",
-            data=csv_counts,
-            file_name=f"{uploaded_file.name}_MTI_counts.csv",
-            mime="text/csv"
-        )
 
         # Validation phase
         total_mtis = 0

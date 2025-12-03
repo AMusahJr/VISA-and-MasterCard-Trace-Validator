@@ -43,7 +43,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (MTI‑to‑END Debug Mode)")
+st.title("ISO8583 Trace File Validator (MTI Grouping Mode)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -63,9 +63,6 @@ if uploaded_files:
                 line = line.decode("latin-1")
             line = line.strip()
 
-            # Debug: show raw line
-            st.text(f"Line {line_num}: {line}")
-
             # Start of new message
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
@@ -75,15 +72,6 @@ if uploaded_files:
                     messages.append(current_message)
                     nested_field = None
                     nested_data = {}
-                    st.text(f"--> New MTI detected: {current_mti} (Message {len(messages)})")
-                continue
-
-            # End of current message
-            if "END" in line:
-                st.text(f"--> End of MTI {current_message['mti']} (Message {len(messages)})")
-                current_message = None
-                nested_field = None
-                nested_data = {}
                 continue
 
             # If we are inside a message, capture fields
@@ -95,7 +83,6 @@ if uploaded_files:
                         nested_field = fld_match.group(1)
                         nested_data = {}
                         current_message["fields"][nested_field] = nested_data
-                        st.text(f"--> Nested field start: DE {nested_field}")
                     continue
 
                 # Nested line
@@ -104,7 +91,6 @@ if uploaded_files:
                     if tag_match:
                         tag, value = tag_match.groups()
                         nested_data[tag.strip()] = value.strip()
-                        st.text(f"   Nested tag captured: {tag.strip()} = {value.strip()}")
                     continue
 
                 # Reset nested field when next FLD starts
@@ -116,7 +102,6 @@ if uploaded_files:
                 if match:
                     field_num, length, value = match.groups()
                     current_message["fields"][field_num] = value.strip()
-                    st.text(f"--> Field captured: MTI {current_message['mti']} DE {field_num} = {value.strip()}")
 
         # 🔍 Show MTI counts
         mti_counts = {}

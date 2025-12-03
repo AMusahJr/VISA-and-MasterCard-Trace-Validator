@@ -43,7 +43,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (MTI Grouping Mode)")
+st.title("ISO8583 Trace File Validator (Multi‑Select MTI Filter)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -80,7 +80,7 @@ if uploaded_files:
                 if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
                     fld_match = nested_start_pattern.search(line)
                     if fld_match:
-                        nested_field = fld_match.group(1)
+                        nested_field = str(int(fld_match.group(1)))  # normalize
                         nested_data = {}
                         current_message["fields"][nested_field] = nested_data
                     continue
@@ -101,7 +101,8 @@ if uploaded_files:
                 match = fld_pattern.search(line)
                 if match:
                     field_num, length, value = match.groups()
-                    current_message["fields"][field_num] = value.strip()
+                    normalized = str(int(field_num))  # normalize "007" -> "7"
+                    current_message["fields"][normalized] = value.strip()
 
         # 🔍 Show MTI counts
         mti_counts = {}
@@ -113,12 +114,18 @@ if uploaded_files:
         df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
         st.dataframe(df_counts)
 
+        # Multi‑select filter
+        mti_options = sorted(mti_counts.keys())
+        selected_mtis = st.multiselect("Select one or more MTIs to view", mti_options, default=mti_options)
+
+        filtered_messages = [msg for msg in messages if msg["mti"] in selected_mtis]
+
         # Validation phase
         total_mtis = 0
         mtis_with_errors = 0
         mtis_clean = 0
 
-        for i, msg in enumerate(messages, 1):
+        for i, msg in enumerate(filtered_messages, 1):
             mti = msg["mti"]
             field_values = msg["fields"]
 
@@ -179,6 +186,6 @@ if uploaded_files:
 
         st.write("---")
         st.success(
-            f"Global Summary: File contained {total_mtis} transactional messages — "
+            f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )

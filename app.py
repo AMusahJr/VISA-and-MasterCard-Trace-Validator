@@ -87,6 +87,7 @@ if uploaded_files:
         current_message = None
         nested_field = None
         nested_data = {}
+        debug_log = []  # NEW: capture unmatched lines
 
         for line_num, line in enumerate(uploaded_file, 1):
             try:
@@ -135,7 +136,12 @@ if uploaded_files:
                     normalized = str(int(field_num))
                     current_message["fields"][normalized] = value.strip()
                 else:
-                    continue
+                    # NEW: log unmatched line
+                    debug_log.append({
+                        "Line #": line_num,
+                        "Content": line,
+                        "Reason": "No regex match"
+                    })
 
         # MTI counts
         mti_counts = {}
@@ -177,7 +183,10 @@ if uploaded_files:
 
                 if isinstance(value, dict):
                     # Show actual tag=value pairs
-                    display_value = "; ".join([f"{k}={v}" for k, v in value.items()])
+                    if value:
+                        display_value = "; ".join([f"{k}={v}" for k, v in value.items()])
+                    else:
+                        display_value = "(no tags found)"
                     mandatory_data.append({
                         "Field": f"DE {f}",
                         "Value": display_value,
@@ -194,7 +203,7 @@ if uploaded_files:
                     if f == "100":
                         mandatory_data.append({
                             "Field": "DE 100",
-                            "Value": value,  # e.g. "300302" from trace file
+                            "Value": value,
                             "Validation": "✅ Passed" if not issue else f"❌ {issue}"
                         })
                         if not issue:
@@ -260,3 +269,9 @@ if uploaded_files:
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
+
+        # --- Debug log of unmatched lines ---
+        if debug_log:
+            st.write("### Debug Log: Unmatched Lines")
+            df_debug = pd.DataFrame(debug_log)
+            st.dataframe(df_debug)

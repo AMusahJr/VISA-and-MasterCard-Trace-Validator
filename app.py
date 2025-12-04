@@ -182,8 +182,8 @@ if uploaded_files:
                 value = field_values.get(f)
 
                 if isinstance(value, dict):
-                    # Only DE 55, 62, 63 have nested tags
                     if f in ["55", "62", "63"]:
+                        # Log nested tags
                         if value:
                             for k, v in value.items():
                                 nested_debug.append({
@@ -209,42 +209,34 @@ if uploaded_files:
                         passed_count += 1
                         available_count += 1
                     else:
-                        # For other dict-like fields, just show as string
-                        display_value = str(value)
+                        # Unexpected dict — flag as error
                         mandatory_data.append({
                             "Field": f"DE {f}",
-                            "Value": display_value,
-                            "Validation": "✅ Passed"
+                            "Value": "{}",
+                            "Validation": "❌ Unexpected dictionary format"
                         })
-                        passed_count += 1
-                        available_count += 1
+                        failed_count += 1
+                        errors.append({
+                            "Field": f,
+                            "Value": "{}",
+                            "Issue": "Unexpected dictionary format"
+                        })
 
                 elif value:
                     available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti, scheme)
 
-                    if f == "100":
-                        mandatory_data.append({
-                            "Field": "DE 100",
-                            "Value": value,
-                            "Validation": "✅ Passed" if not issue else f"❌ {issue}"
-                        })
-                        if not issue:
-                            passed_count += 1
-                        else:
-                            failed_count += 1
-                            errors.append({"Field": f, "Value": value, "Issue": issue})
+                    mandatory_data.append({
+                        "Field": f"DE {f}",
+                        "Value": value,
+                        "Validation": "✅ Passed" if not issue else f"❌ {issue}"
+                    })
+
+                    if not issue:
+                        passed_count += 1
                     else:
-                        if not issue:
-                            mandatory_data.append({
-                                "Field": f"DE {f}",
-                                "Value": value,
-                                "Validation": "✅ Passed"
-                            })
-                            passed_count += 1
-                        else:
-                            failed_count += 1
-                            errors.append({"Field": f, "Value": value, "Issue": issue})
+                        failed_count += 1
+                        errors.append({"Field": f, "Value": value, "Issue": issue})
 
                 else:
                     missing_count += 1
@@ -299,3 +291,4 @@ if uploaded_files:
             st.write("### Debug Area: Nested Field Details (DE 55, 62, 63)")
             df_nested = pd.DataFrame(nested_debug)
             st.dataframe(df_nested)
+                       

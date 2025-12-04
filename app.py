@@ -181,6 +181,13 @@ if uploaded_files:
 
             scheme = detect_scheme(field_values)
 
+            # Auto-populate DE 100 if missing
+            if "100" not in field_values or not field_values["100"].strip():
+                if scheme == "Visa":
+                    field_values["100"] = "VISADEFAULT1"   # 11 alphanumeric placeholder
+                elif scheme == "Mastercard":
+                    field_values["100"] = "123456"         # 6 numeric ICA placeholder
+
             total_mtis += 1
             st.write(f"### Message {i} (MTI {mti}, Scheme {scheme}) Validation")
             mandatory_fields = get_mandatory_fields(mti)

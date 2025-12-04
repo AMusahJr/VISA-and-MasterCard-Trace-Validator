@@ -110,20 +110,20 @@ if uploaded_files:
                 continue
 
             if current_message:
-                # Nested field start
+                # Nested field start — don't assign yet
                 fld_match = nested_start_pattern.search(line)
                 if fld_match:
                     nested_field = str(int(fld_match.group(1)))
                     nested_data = {}
-                    current_message["fields"][nested_field] = nested_data
                     continue
 
-                # Nested line
+                # Nested line — assign only if tags exist
                 if nested_field and line.startswith(">"):
                     tag_match = nested_line_pattern.search(line)
                     if tag_match:
                         tag, value = tag_match.groups()
                         nested_data[tag.strip()] = value.strip()
+                        current_message["fields"][nested_field] = nested_data
                     continue
 
                 # Reset nested field
@@ -183,7 +183,6 @@ if uploaded_files:
 
                 if isinstance(value, dict):
                     if f in ["55", "62", "63"]:
-                        # Log nested tags
                         if value:
                             for k, v in value.items():
                                 nested_debug.append({
@@ -209,7 +208,6 @@ if uploaded_files:
                         passed_count += 1
                         available_count += 1
                     else:
-                        # Unexpected dict — flag as error
                         mandatory_data.append({
                             "Field": f"DE {f}",
                             "Value": "{}",
@@ -280,15 +278,18 @@ if uploaded_files:
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
 
-        # --- Debug log of unmatched lines ---
-        if debug_log:
-            st.write("### Debug Log: Unmatched Lines")
-            df_debug = pd.DataFrame(debug_log)
-            st.dataframe(df_debug)
+        # --- Toggle for debug areas ---
+        show_debug = st.checkbox("Show Debug Areas", value=False)
 
-        # --- Debug area for nested field details (DE 55, 62, 63) ---
-        if nested_debug:
-            st.write("### Debug Area: Nested Field Details (DE 55, 62, 63)")
-            df_nested = pd.DataFrame(nested_debug)
-            st.dataframe(df_nested)
-                       
+        if show_debug:
+            # Debug log of unmatched lines
+            if debug_log:
+                st.write("### Debug Log: Unmatched Lines")
+                df_debug = pd.DataFrame(debug_log)
+                st.dataframe(df_debug)
+
+            # Debug area for nested field details (DE 55, 62, 63)
+            if nested_debug:
+                st.write("### Debug Area: Nested Field Details (DE 55, 62, 63)")
+                df_nested = pd.DataFrame(nested_debug)
+                st.dataframe(df_nested)

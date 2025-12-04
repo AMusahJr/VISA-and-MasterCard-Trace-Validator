@@ -9,7 +9,8 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)\s+\[(.*?)\]")
+# Updated to allow numeric length OR literal 'LLVAR'
+fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)\s+\[(.*?)\]")
 nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
@@ -53,7 +54,8 @@ def validate_field(field_num, length, value, mti, scheme):
             return "Missing mandatory field 100"
         if not value.isdigit():
             return "Invalid format: expected numeric"
-        if len(value) < 1 or len(value) > 11:  # LLVAR: variable length up to 11
+        # LLVAR: variable length, up to 11 digits
+        if len(value) < 1 or len(value) > 11:
             return f"Invalid length: expected 1–11, got {len(value)}"
         return None
 

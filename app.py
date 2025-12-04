@@ -9,9 +9,10 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)\s+\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
-nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
+mti_pattern = re.compile(r"M\.T\.I\s*:\s*\[(\d{4})\]")
+fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\(([^)]+)\)\s*:\s*\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?:\s*\[(.*?)\]")
 
 def detect_scheme(fields):
     if "126" in fields:
@@ -94,24 +95,26 @@ if uploaded_files:
                 line = line.decode("latin-1")
             line = line.strip()
 
-            if "M.T.I" in line:
-                mti_match = re.search(r"\[(\d+)\]", line)
-                if mti_match:
-                    current_mti = mti_match.group(1)
-                    current_message = {"mti": current_mti, "fields": {}}
-                    current_message["fields"]["MTI"] = current_mti
-                    messages.append(current_message)
-                    nested_field = None
-                    nested_data = {}
+            # --- MTI detection ---
+            mti_match = mti_pattern.search(line)
+            if mti_match:
+                current_mti = mti_match.group(1)
+                current_message = {"mti": current_mti, "fields": {}}
+                current_message["fields"]["MTI"] = current_mti
+                messages.append(current_message)
+                nested_field = None
+                nested_data = {}
                 continue
 
             if current_message:
+                # Nested field start
                 fld_match = nested_start_pattern.search(line)
                 if fld_match:
                     nested_field = str(int(fld_match.group(1)))
                     nested_data = {}
                     continue
 
+                # Nested line
                 if nested_field and line.startswith(">"):
                     tag_match = nested_line_pattern.search(line)
                     if tag_match:
@@ -120,9 +123,11 @@ if uploaded_files:
                         current_message["fields"][nested_field] = nested_data
                     continue
 
+                # Reset nested field
                 if "FLD" in line and not line.startswith(">"):
                     nested_field = None
 
+                # Regular field
                 match = fld_pattern.search(line)
                 if match:
                     field_num, length, value = match.groups()
@@ -135,6 +140,7 @@ if uploaded_files:
                         "Reason": "No regex match for field"
                     })
 
+        # --- MTI counts ---
         mti_counts = {}
         for msg in messages:
             mti = msg["mti"]

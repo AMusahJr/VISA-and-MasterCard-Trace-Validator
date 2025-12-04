@@ -29,6 +29,11 @@ def validate_field(field_num, length, value, mti):
         else:
             return None  # accept any non-empty value
 
+    # Special case: DE 22 normalization
+    if field_num == "22" and value and len(value) == 4 and value.startswith("0"):
+        if value.isdigit():
+            value = value  # accept raw string like "0520" as valid
+
     expected_length = rule["Length"]
     if expected_length.isdigit():
         if len(value) != int(expected_length):
@@ -54,7 +59,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (with DE 42 & DE 126 rules)")
+st.title("ISO8583 Trace File Validator (with DE 22, DE 42, DE 126 & MTI rules)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -80,6 +85,8 @@ if uploaded_files:
                 if mti_match:
                     current_mti = mti_match.group(1)
                     current_message = {"mti": current_mti, "fields": {}}
+                    # Store MTI as a pseudo-field for validation
+                    current_message["fields"]["MTI"] = current_mti
                     messages.append(current_message)
                     nested_field = None
                     nested_data = {}
@@ -154,6 +161,10 @@ if uploaded_files:
             for f in mandatory_fields:
                 value = field_values.get(f)
 
+                # Apply DE 22 normalization before validation
+                if f == "22" and value and len(value) == 4 and value.startswith("0") and value.isdigit():
+                    value = value  # accept raw string like "0520" as valid
+
                 if isinstance(value, dict):
                     display_value = f"{len(value)} nested items"
                     mandatory_data.append({"Field": f"DE {f}", "Value": display_value, "Validation": "✅ Nested field captured"})
@@ -194,10 +205,4 @@ if uploaded_files:
                 else:
                     return "background-color: #f8d7da; color: #721c24"
 
-            st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
-
-        st.write("---")
-        st.success(
-            f"Global Summary (Filtered): {total_mtis} transactional messages — "
-            f"{mtis_clean} clean, {mtis_with_errors} with errors"
-        )
+            st.dataframe(df_mandatory.style.map(highlight_validation, subset

@@ -251,7 +251,7 @@ if uploaded_files:
                     errors.append({
                         "Field": f,
                         "Value": "❌ Missing",
-                        "Issue": "Missing mandatory field"}
+                        "Issue": "Missing mandatory field"})
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "

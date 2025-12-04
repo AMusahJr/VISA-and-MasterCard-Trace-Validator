@@ -9,12 +9,16 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-mti_pattern = re.compile(r"M\.T\.I\s*:\s*\[(\d{4})\]")
-fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\(([^)]+)\)\s*:\s*\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+)\)")
-nested_line_pattern = re.compile(r"\((.*?)\).*?:\s*\[(.*?)\]")
+fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)\s+\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def detect_scheme(fields):
+    """
+    Detect whether the trace belongs to Visa or Mastercard.
+    - If DE 126 is present → Mastercard (since Visa doesn't use DE 126).
+    - Else default to Visa.
+    """
     if "126" in fields:
         return "Mastercard"
     return "Visa"
@@ -28,11 +32,14 @@ def validate_field(field_num, length, value, mti, scheme):
         if not value:
             return f"Missing mandatory field {field_num}"
 
+    # Special case: DE 42
     if field_num == "42":
         if not value.strip():
             return f"Missing mandatory field {field_num}"
-        return None
+        else:
+            return None
 
+    # Special case: DE 22 — numeric, length 3 or 4, leading zeros allowed
     if field_num == "22":
         if not value or not value.isdigit():
             return "Invalid format: expected numeric"
@@ -40,13 +47,20 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Invalid length: expected 3 or 4, got {len(value)}"
         return None
 
+    # Special case: DE 100 — Visa vs Mastercard
     if field_num == "100":
         if not value.strip():
             return "Missing mandatory field 100"
-        if not value.isdigit():
-            return "Invalid format: expected numeric"
-        if len(value) < 1 or len(value) > 11:
-            return f"Invalid length: expected 1–11, got {len(value)}"
+        if scheme == "Visa":
+            if not value.isalnum():
+                return "Invalid format: expected alphanumeric"
+            if len(value) != 11:
+                return f"Invalid length: expected 11, got {len(value)}"
+        elif scheme == "Mastercard":
+            if not value.isdigit():
+                return "Invalid format: expected numeric"
+            if len(value) != 6:
+                return f"Invalid length: expected 6, got {len(value)}"
         return None
 
     expected_length = rule["Length"]
@@ -68,12 +82,13 @@ def get_mandatory_fields(mti):
     for field_num, rule in data_elements.items():
         usage = rule.get("Usage", {})
         if usage.get("all") == "M" or usage.get(mti) == "M":
+            # Special rule: DE 126 only mandatory for Mastercard response MTIs
             if field_num == "126" and mti not in ["0210", "0110", "0430"]:
                 continue
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Visa vs Mastercard aware, Ghana DE100)")
+st.title("ISO8583 Trace File Validator (Visa vs Mastercard aware)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -85,8 +100,6 @@ if uploaded_files:
         current_message = None
         nested_field = None
         nested_data = {}
-        debug_log = []
-        nested_debug = []
 
         for line_num, line in enumerate(uploaded_file, 1):
             try:
@@ -95,23 +108,28 @@ if uploaded_files:
                 line = line.decode("latin-1")
             line = line.strip()
 
-            # --- MTI detection ---
-            mti_match = mti_pattern.search(line)
-            if mti_match:
-                current_mti = mti_match.group(1)
-                current_message = {"mti": current_mti, "fields": {}}
-                current_message["fields"]["MTI"] = current_mti
-                messages.append(current_message)
-                nested_field = None
-                nested_data = {}
+            # Start of new message
+            if "M.T.I" in line:
+                mti_match = re.search(r"\[(\d+)\]", line)
+                if mti_match:
+                    current_mti = mti_match.group(1)
+                    current_message = {"mti": current_mti, "fields": {}}
+                    # Store MTI as a pseudo-field for validation
+                    current_message["fields"]["MTI"] = current_mti
+                    messages.append(current_message)
+                    nested_field = None
+                    nested_data = {}
                 continue
 
+            # If we are inside a message, capture fields
             if current_message:
                 # Nested field start
-                fld_match = nested_start_pattern.search(line)
-                if fld_match:
-                    nested_field = str(int(fld_match.group(1)))
-                    nested_data = {}
+                if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
+                    fld_match = nested_start_pattern.search(line)
+                    if fld_match:
+                        nested_field = str(int(fld_match.group(1)))
+                        nested_data = {}
+                        current_message["fields"][nested_field] = nested_data
                     continue
 
                 # Nested line
@@ -120,10 +138,9 @@ if uploaded_files:
                     if tag_match:
                         tag, value = tag_match.groups()
                         nested_data[tag.strip()] = value.strip()
-                        current_message["fields"][nested_field] = nested_data
                     continue
 
-                # Reset nested field
+                # Reset nested field when next FLD starts
                 if "FLD" in line and not line.startswith(">"):
                     nested_field = None
 
@@ -133,14 +150,8 @@ if uploaded_files:
                     field_num, length, value = match.groups()
                     normalized = str(int(field_num))
                     current_message["fields"][normalized] = value.strip()
-                else:
-                    debug_log.append({
-                        "Line #": line_num,
-                        "Content": line,
-                        "Reason": "No regex match for field"
-                    })
 
-        # --- MTI counts ---
+        # MTI counts
         mti_counts = {}
         for msg in messages:
             mti = msg["mti"]
@@ -150,10 +161,13 @@ if uploaded_files:
         df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
         st.dataframe(df_counts)
 
+        # Multi-select filter
         mti_options = sorted(mti_counts.keys())
         selected_mtis = st.multiselect("Select one or more MTIs to view", mti_options, default=mti_options)
+
         filtered_messages = [msg for msg in messages if msg["mti"] in selected_mtis]
 
+        # Validation phase
         total_mtis = 0
         mtis_with_errors = 0
         mtis_clean = 0
@@ -179,60 +193,20 @@ if uploaded_files:
                 value = field_values.get(f)
 
                 if isinstance(value, dict):
-                    if f in ["55", "62", "63"]:
-                        if value:
-                            for k, v in value.items():
-                                nested_debug.append({
-                                    "Message": i,
-                                    "MTI": mti,
-                                    "Field": f"DE {f}",
-                                    "Tag": k,
-                                    "Value": v
-                                })
-                        else:
-                            nested_debug.append({
-                                "Message": i,
-                                "MTI": mti,
-                                "Field": f"DE {f}",
-                                "Tag": "(none)",
-                                "Value": "(no tags found)"
-                            })
-                        mandatory_data.append({
-                            "Field": f"DE {f}",
-                            "Value": "(nested tags logged in debug)",
-                            "Validation": "✅ Nested field captured"
-                        })
-                        passed_count += 1
-                        available_count += 1
-                    else:
-                        mandatory_data.append({
-                            "Field": f"DE {f}",
-                            "Value": "{}",
-                            "Validation": "❌ Unexpected dictionary format"
-                        })
-                        failed_count += 1
-                        errors.append({
-                            "Field": f,
-                            "Value": "{}",
-                            "Issue": "Unexpected dictionary format"
-                        })
-
+                    display_value = f"{len(value)} nested items"
+                    mandatory_data.append({"Field": f"DE {f}", "Value": display_value, "Validation": "✅ Nested field captured"})
+                    passed_count += 1
+                    available_count += 1
                 elif value:
                     available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti, scheme)
-
-                    mandatory_data.append({
-                        "Field": f"DE {f}",
-                        "Value": value,
-                        "Validation": "✅ Passed" if not issue else f"❌ {issue}"
-                    })
-
                     if not issue:
+                        mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": "✅ Passed"})
                         passed_count += 1
                     else:
+                        mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": f"❌ {issue}"})
                         failed_count += 1
                         errors.append({"Field": f, "Value": value, "Issue": issue})
-
                 else:
                     missing_count += 1
                     mandatory_data.append({
@@ -247,7 +221,7 @@ if uploaded_files:
                         "Issue": "Missing mandatory field"
                     })
 
-            st.info(
+			st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"
@@ -274,19 +248,3 @@ if uploaded_files:
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
-
-        # --- Toggle for debug areas ---
-        show_debug = st.checkbox("Show Debug Areas", value=False)
-
-        if show_debug:
-            # Debug log of unmatched lines
-            if debug_log:
-                st.write("### Debug Log: Unmatched Lines")
-                df_debug = pd.DataFrame(debug_log)
-                st.dataframe(df_debug)
-
-            # Debug area for nested field details (DE 55, 62, 63)
-            if nested_debug:
-                st.write("### Debug Area: Nested Field Details (DE 55, 62, 63)")
-                df_nested = pd.DataFrame(nested_debug)
-                st.dataframe(df_nested)

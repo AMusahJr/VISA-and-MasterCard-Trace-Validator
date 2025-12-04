@@ -47,20 +47,14 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Invalid length: expected 3 or 4, got {len(value)}"
         return None
 
-    # Special case: DE 100 — Visa vs Mastercard
+    # Special case: DE 100 — Ghana spec (numeric LLVAR)
     if field_num == "100":
         if not value.strip():
             return "Missing mandatory field 100"
-        if scheme == "Visa":
-            if not value.isalnum():
-                return "Invalid format: expected alphanumeric"
-            if len(value) != 11:
-                return f"Invalid length: expected 11, got {len(value)}"
-        elif scheme == "Mastercard":
-            if not value.isdigit():
-                return "Invalid format: expected numeric"
-            if len(value) != 6:
-                return f"Invalid length: expected 6, got {len(value)}"
+        if not value.isdigit():
+            return "Invalid format: expected numeric"
+        if len(value) < 1 or len(value) > 11:  # LLVAR: variable length up to 11
+            return f"Invalid length: expected 1–11, got {len(value)}"
         return None
 
     expected_length = rule["Length"]
@@ -88,7 +82,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Visa vs Mastercard aware)")
+st.title("ISO8583 Trace File Validator (Visa vs Mastercard aware, Ghana DE100)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 

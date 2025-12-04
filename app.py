@@ -21,6 +21,14 @@ def validate_field(field_num, length, value, mti):
     if usage.get("all") == "M" or usage.get(mti) == "M":
         if not value:
             return f"Missing mandatory field {field_num}"
+
+    # Special case: DE 42 should not be flagged if < 15 chars
+    if field_num == "42":
+        if not value.strip():
+            return f"Missing mandatory field {field_num}"
+        else:
+            return None  # accept any non-empty value
+
     expected_length = rule["Length"]
     if expected_length.isdigit():
         if len(value) != int(expected_length):
@@ -40,10 +48,13 @@ def get_mandatory_fields(mti):
     for field_num, rule in data_elements.items():
         usage = rule.get("Usage", {})
         if usage.get("all") == "M" or usage.get(mti) == "M":
+            # Special rule: DE 126 only mandatory for Mastercard response MTIs
+            if field_num == "126" and mti not in ["0210", "0110", "0430"]:
+                continue
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Multi‑Select MTI Filter)")
+st.title("ISO8583 Trace File Validator (with DE 42 & DE 126 rules)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -142,6 +153,7 @@ if uploaded_files:
 
             for f in mandatory_fields:
                 value = field_values.get(f)
+
                 if isinstance(value, dict):
                     display_value = f"{len(value)} nested items"
                     mandatory_data.append({"Field": f"DE {f}", "Value": display_value, "Validation": "✅ Nested field captured"})

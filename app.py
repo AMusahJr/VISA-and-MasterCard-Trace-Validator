@@ -236,7 +236,7 @@ if uploaded_files:
 
             def highlight_validation(val):
                 if "✅" in val:
-			return "background-color: #d4edda; color: #155724"
+                    return "background-color: #d4edda; color: #155724"
                 else:
                     return "background-color: #f8d7da; color: #721c24"
 
@@ -248,4 +248,3 @@ if uploaded_files:
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
-

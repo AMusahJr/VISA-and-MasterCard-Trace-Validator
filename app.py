@@ -205,4 +205,11 @@ if uploaded_files:
                 else:
                     return "background-color: #f8d7da; color: #721c24"
 
-            st.dataframe(df_mandatory.style.map(highlight_validation, subset
+            st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
+
+        # --- Global summary for filtered MTIs ---
+        st.write("---")
+        st.success(
+            f"Global Summary (Filtered): {total_mtis} transactional messages — "
+            f"{mtis_clean} clean, {mtis_with_errors} with errors"
+        )

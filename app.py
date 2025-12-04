@@ -29,10 +29,13 @@ def validate_field(field_num, length, value, mti):
         else:
             return None  # accept any non-empty value
 
-    # Special case: DE 22 normalization
-    if field_num == "22" and value and len(value) == 4 and value.startswith("0"):
-        if value.isdigit():
-            value = value  # accept raw string like "0520" as valid
+    # Special case: DE 22 — numeric, length 3 or 4, leading zeros allowed
+    if field_num == "22":
+        if not value or not value.isdigit():
+            return "Invalid format: expected numeric"
+        if len(value) not in (3, 4):
+            return f"Invalid length: expected 3 or 4, got {len(value)}"
+        return None  # accept 3 or 4 digit numeric values
 
     expected_length = rule["Length"]
     if expected_length.isdigit():
@@ -160,10 +163,6 @@ if uploaded_files:
 
             for f in mandatory_fields:
                 value = field_values.get(f)
-
-                # Apply DE 22 normalization before validation
-                if f == "22" and value and len(value) == 4 and value.startswith("0") and value.isdigit():
-                    value = value  # accept raw string like "0520" as valid
 
                 if isinstance(value, dict):
                     display_value = f"{len(value)} nested items"

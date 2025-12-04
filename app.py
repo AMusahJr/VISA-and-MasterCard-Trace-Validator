@@ -220,7 +220,7 @@ if uploaded_files:
                         "Issue": "Missing mandatory field"
                     })
 
-			st.info(
+	    st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"

@@ -37,7 +37,7 @@ def validate_field(field_num, length, value, mti, scheme):
         if not value.strip():
             return f"Missing mandatory field {field_num}"
         else:
-            return None  # accept any non-empty value
+            return None
 
     # Special case: DE 22 — numeric, length 3 or 4, leading zeros allowed
     if field_num == "22":
@@ -127,7 +127,7 @@ if uploaded_files:
                 if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
                     fld_match = nested_start_pattern.search(line)
                     if fld_match:
-                        nested_field = str(int(fld_match.group(1)))  # normalize
+                        nested_field = str(int(fld_match.group(1)))
                         nested_data = {}
                         current_message["fields"][nested_field] = nested_data
                     continue
@@ -148,10 +148,10 @@ if uploaded_files:
                 match = fld_pattern.search(line)
                 if match:
                     field_num, length, value = match.groups()
-                    normalized = str(int(field_num))  # normalize "007" -> "7"
+                    normalized = str(int(field_num))
                     current_message["fields"][normalized] = value.strip()
 
-        # 🔍 Show MTI counts
+        # MTI counts
         mti_counts = {}
         for msg in messages:
             mti = msg["mti"]
@@ -161,7 +161,7 @@ if uploaded_files:
         df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
         st.dataframe(df_counts)
 
-        # Multi‑select filter
+        # Multi-select filter
         mti_options = sorted(mti_counts.keys())
         selected_mtis = st.multiselect("Select one or more MTIs to view", mti_options, default=mti_options)
 
@@ -179,7 +179,6 @@ if uploaded_files:
             if mti in ["0800", "0810", "0820"]:
                 continue
 
-            # Detect scheme (Visa vs Mastercard)
             scheme = detect_scheme(field_values)
 
             total_mtis += 1
@@ -209,10 +208,18 @@ if uploaded_files:
                         failed_count += 1
                         errors.append({"Field": f, "Value": value, "Issue": issue})
                 else:
-                                        missing_count += 1
-                    mandatory_data.append({"Field": f"DE {f}", "Value": "❌ Missing", "Validation": "❌ Missing mandatory field"})
+                    missing_count += 1
+                    mandatory_data.append({
+                        "Field": f"DE {f}",
+                        "Value": "❌ Missing",
+                        "Validation": "❌ Missing mandatory field"
+                    })
                     failed_count += 1
-                    errors.append({"Field": f, "Value": "❌ Missing", "Issue": "Missing mandatory field"})
+                    errors.append({
+                        "Field": f,
+                        "Value": "❌ Missing",
+                        "Issue": "Missing mandatory field"
+                    })
 
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
@@ -229,7 +236,7 @@ if uploaded_files:
 
             def highlight_validation(val):
                 if "✅" in val:
-                    return "background-color: #d4edda; color: #155724"
+			return "background-color: #d4edda; color: #155724"
                 else:
                     return "background-color: #f8d7da; color: #721c24"
 
@@ -241,7 +248,4 @@ if uploaded_files:
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
-                    
-
-
 

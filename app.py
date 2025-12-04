@@ -13,7 +13,17 @@ fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)\s+\[(.*?)\]")
 nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
-def validate_field(field_num, length, value, mti):
+def detect_scheme(fields):
+    """
+    Detect whether the trace belongs to Visa or Mastercard.
+    - If DE 126 is present → Mastercard (since Visa doesn't use DE 126).
+    - Else default to Visa.
+    """
+    if "126" in fields:
+        return "Mastercard"
+    return "Visa"
+
+def validate_field(field_num, length, value, mti, scheme):
     rule = data_elements.get(field_num)
     if not rule:
         return None
@@ -22,7 +32,7 @@ def validate_field(field_num, length, value, mti):
         if not value:
             return f"Missing mandatory field {field_num}"
 
-    # Special case: DE 42 should not be flagged if < 15 chars
+    # Special case: DE 42
     if field_num == "42":
         if not value.strip():
             return f"Missing mandatory field {field_num}"
@@ -35,7 +45,23 @@ def validate_field(field_num, length, value, mti):
             return "Invalid format: expected numeric"
         if len(value) not in (3, 4):
             return f"Invalid length: expected 3 or 4, got {len(value)}"
-        return None  # accept 3 or 4 digit numeric values
+        return None
+
+    # Special case: DE 100 — Visa vs Mastercard
+    if field_num == "100":
+        if not value.strip():
+            return "Missing mandatory field 100"
+        if scheme == "Visa":
+            if not value.isalnum():
+                return "Invalid format: expected alphanumeric"
+            if len(value) != 11:
+                return f"Invalid length: expected 11, got {len(value)}"
+        elif scheme == "Mastercard":
+            if not value.isdigit():
+                return "Invalid format: expected numeric"
+            if len(value) != 6:
+                return f"Invalid length: expected 6, got {len(value)}"
+        return None
 
     expected_length = rule["Length"]
     if expected_length.isdigit():
@@ -62,7 +88,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (with DE 22, DE 42, DE 126 & MTI rules)")
+st.title("ISO8583 Trace File Validator (Visa vs Mastercard aware)")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 
@@ -153,8 +179,11 @@ if uploaded_files:
             if mti in ["0800", "0810", "0820"]:
                 continue
 
+            # Detect scheme (Visa vs Mastercard)
+            scheme = detect_scheme(field_values)
+
             total_mtis += 1
-            st.write(f"### Message {i} (MTI {mti}) Validation")
+            st.write(f"### Message {i} (MTI {mti}, Scheme {scheme}) Validation")
             mandatory_fields = get_mandatory_fields(mti)
             mandatory_data = []
             passed_count, failed_count = 0, 0
@@ -171,7 +200,7 @@ if uploaded_files:
                     available_count += 1
                 elif value:
                     available_count += 1
-                    issue = validate_field(f, str(len(value)), value, mti)
+                    issue = validate_field(f, str(len(value)), value, mti, scheme)
                     if not issue:
                         mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": "✅ Passed"})
                         passed_count += 1
@@ -180,13 +209,13 @@ if uploaded_files:
                         failed_count += 1
                         errors.append({"Field": f, "Value": value, "Issue": issue})
                 else:
-                    missing_count += 1
+                                        missing_count += 1
                     mandatory_data.append({"Field": f"DE {f}", "Value": "❌ Missing", "Validation": "❌ Missing mandatory field"})
                     failed_count += 1
                     errors.append({"Field": f, "Value": "❌ Missing", "Issue": "Missing mandatory field"})
 
             st.info(
-                f"Summary for Message {i} (MTI {mti}): {len(mandatory_fields)} mandatory fields — "
+                f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"
             )

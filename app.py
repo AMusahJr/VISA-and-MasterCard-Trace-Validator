@@ -171,7 +171,6 @@ if uploaded_files:
         total_mtis = 0
         mtis_with_errors = 0
         mtis_clean = 0
-
         for i, msg in enumerate(filtered_messages, 1):
             mti = msg["mti"]
             field_values = msg["fields"]
@@ -221,7 +220,7 @@ if uploaded_files:
                         "Issue": "Missing mandatory field"
                     })
 
-			st.info(
+	    st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"

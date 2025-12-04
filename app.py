@@ -240,7 +240,7 @@ if uploaded_files:
             )
 
             if failed_count > 0:
-		mtis_with_errors += 1
+                mtis_with_errors += 1
             else:
                 mtis_clean += 1
 
@@ -260,4 +260,3 @@ if uploaded_files:
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
-		

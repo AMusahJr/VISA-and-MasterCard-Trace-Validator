@@ -9,13 +9,11 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-# Updated to allow numeric length OR literal 'LLVAR'
 fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)\s+\[(.*?)\]")
 nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def detect_scheme(fields):
-    """Detect whether the trace belongs to Visa or Mastercard."""
     if "126" in fields:
         return "Mastercard"
     return "Visa"
@@ -35,7 +33,7 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Missing mandatory field {field_num}"
         return None
 
-    # DE 22 — numeric, length 3 or 4
+    # DE 22
     if field_num == "22":
         if not value or not value.isdigit():
             return "Invalid format: expected numeric"
@@ -109,16 +107,16 @@ if uploaded_files:
                     nested_data = {}
                 continue
 
-            # If we are inside a message, capture fields
             if current_message:
-                if "FLD (055)" in line or "FLD (062)" in line or "FLD (063)" in line:
-                    fld_match = nested_start_pattern.search(line)
-                    if fld_match:
-                        nested_field = str(int(fld_match.group(1)))
-                        nested_data = {}
-                        current_message["fields"][nested_field] = nested_data
+                # Nested field start
+                fld_match = nested_start_pattern.search(line)
+                if fld_match:
+                    nested_field = str(int(fld_match.group(1)))
+                    nested_data = {}
+                    current_message["fields"][nested_field] = nested_data
                     continue
 
+                # Nested line
                 if nested_field and line.startswith(">"):
                     tag_match = nested_line_pattern.search(line)
                     if tag_match:
@@ -126,19 +124,19 @@ if uploaded_files:
                         nested_data[tag.strip()] = value.strip()
                     continue
 
+                # Reset nested field
                 if "FLD" in line and not line.startswith(">"):
                     nested_field = None
 
+                # Regular field
                 match = fld_pattern.search(line)
-				if match:  # ✅ safe guard
-					field_num, length, value = match.groups()
-					normalized = str(int(field_num))
-					current_message["fields"][normalized] = value.strip()
-				else:
-					# Skip lines that don't match the regex
-					# Optional: log skipped lines for debugging
-					# st.write(f"Skipped line {line_num}: {line}")
-					continue
+                if match:  # ✅ safe guard
+                    field_num, length, value = match.groups()
+                    normalized = str(int(field_num))
+                    current_message["fields"][normalized] = value.strip()
+                else:
+                    # Skip lines that don't match regex
+                    continue
 
         # MTI counts
         mti_counts = {}

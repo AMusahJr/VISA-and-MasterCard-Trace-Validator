@@ -130,12 +130,11 @@ if uploaded_files:
 
                 # Regular field
                 match = fld_pattern.search(line)
-                if match:  # ✅ safe guard
+                if match:
                     field_num, length, value = match.groups()
                     normalized = str(int(field_num))
                     current_message["fields"][normalized] = value.strip()
                 else:
-                    # Skip lines that don't match regex
                     continue
 
         # MTI counts
@@ -177,20 +176,35 @@ if uploaded_files:
                 value = field_values.get(f)
 
                 if isinstance(value, dict):
-                    display_value = f"{len(value)} nested items"
-                    mandatory_data.append({"Field": f"DE {f}", "Value": display_value, "Validation": "✅ Nested field captured"})
+                    # Show actual tag=value pairs instead of "nested items"
+                    display_value = "; ".join([f"{k}={v}" for k, v in value.items()])
+                    mandatory_data.append({
+                        "Field": f"DE {f}",
+                        "Value": display_value,
+                        "Validation": "✅ Nested field captured"
+                    })
                     passed_count += 1
                     available_count += 1
+
                 elif value:
                     available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti, scheme)
                     if not issue:
-                        mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": "✅ Passed"})
+                        mandatory_data.append({
+                            "Field": f"DE {f}",
+                            "Value": value,
+                            "Validation": "✅ Passed"
+                        })
                         passed_count += 1
                     else:
-                        mandatory_data.append({"Field": f"DE {f}", "Value": value, "Validation": f"❌ {issue}"})
+                        mandatory_data.append({
+                            "Field": f"DE {f}",
+                            "Value": value,
+                            "Validation": f"❌ {issue}"
+                        })
                         failed_count += 1
                         errors.append({"Field": f, "Value": value, "Issue": issue})
+
                 else:
                     missing_count += 1
                     mandatory_data.append({
@@ -226,9 +240,9 @@ if uploaded_files:
 
             st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
 
-        # --- Global summary for filtered MTIs ---
-        st.write("---")
-        st.success(
-            f"Global Summary (Filtered): {total_mtis} transactional messages — "
-            f"{mtis_clean} clean, {mtis_with_errors} with errors"
-        )
+				# --- Global summary for filtered MTIs ---
+				st.write("---")
+				st.success(
+					f"Global Summary (Filtered): {total_mtis} transactional messages — "
+					f"{mtis_clean} clean, {mtis_with_errors} with errors"
+				)

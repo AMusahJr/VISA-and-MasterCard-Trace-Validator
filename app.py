@@ -220,7 +220,7 @@ if uploaded_files:
                         "Issue": "Missing mandatory field"
                     })
 
-	    st.info(
+			st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
                 f"{passed_count} passed, {failed_count} failed"
@@ -240,10 +240,3 @@ if uploaded_files:
                     return "background-color: #f8d7da; color: #721c24"
 
             st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
-
-        # --- Global summary for filtered MTIs ---
-        st.write("---")
-        st.success(
-            f"Global Summary (Filtered): {total_mtis} transactional messages — "
-            f"{mtis_clean} clean, {mtis_with_errors} with errors"
-        )

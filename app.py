@@ -87,7 +87,8 @@ if uploaded_files:
         current_message = None
         nested_field = None
         nested_data = {}
-        debug_log = []  # NEW: capture unmatched lines
+        debug_log = []       # unmatched lines
+        nested_debug = []    # NEW: nested tag=value details
 
         for line_num, line in enumerate(uploaded_file, 1):
             try:
@@ -136,7 +137,6 @@ if uploaded_files:
                     normalized = str(int(field_num))
                     current_message["fields"][normalized] = value.strip()
                 else:
-                    # NEW: log unmatched line
                     debug_log.append({
                         "Line #": line_num,
                         "Content": line,
@@ -182,14 +182,27 @@ if uploaded_files:
                 value = field_values.get(f)
 
                 if isinstance(value, dict):
-                    # Show actual tag=value pairs
+                    # NEW: log nested tags separately
                     if value:
-                        display_value = "; ".join([f"{k}={v}" for k, v in value.items()])
+                        for k, v in value.items():
+                            nested_debug.append({
+                                "Message": i,
+                                "MTI": mti,
+                                "Field": f"DE {f}",
+                                "Tag": k,
+                                "Value": v
+                            })
                     else:
-                        display_value = "(no tags found)"
+                        nested_debug.append({
+                            "Message": i,
+                            "MTI": mti,
+                            "Field": f"DE {f}",
+                            "Tag": "(none)",
+                            "Value": "(no tags found)"
+                        })
                     mandatory_data.append({
                         "Field": f"DE {f}",
-                        "Value": display_value,
+                        "Value": "(nested tags logged in debug)",
                         "Validation": "✅ Nested field captured"
                     })
                     passed_count += 1
@@ -199,7 +212,6 @@ if uploaded_files:
                     available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti, scheme)
 
-                    # Special case: DE 100 — always show actual numeric LLVAR
                     if f == "100":
                         mandatory_data.append({
                             "Field": "DE 100",
@@ -240,8 +252,6 @@ if uploaded_files:
                         "Field": f,
                         "Value": "❌ Missing",
                         "Issue": "Missing mandatory field"
-                    })
-
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
@@ -275,3 +285,9 @@ if uploaded_files:
             st.write("### Debug Log: Unmatched Lines")
             df_debug = pd.DataFrame(debug_log)
             st.dataframe(df_debug)
+
+        # --- Debug area for nested field details ---
+        if nested_debug:
+            st.write("### Debug Area: Nested Field Details")
+            df_nested = pd.DataFrame(nested_debug)
+            st.dataframe(df_nested)

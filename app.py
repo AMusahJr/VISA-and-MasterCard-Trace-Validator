@@ -176,7 +176,7 @@ if uploaded_files:
                 value = field_values.get(f)
 
                 if isinstance(value, dict):
-                    # Show actual tag=value pairs instead of "nested items"
+                    # Show actual tag=value pairs
                     display_value = "; ".join([f"{k}={v}" for k, v in value.items()])
                     mandatory_data.append({
                         "Field": f"DE {f}",
@@ -189,21 +189,35 @@ if uploaded_files:
                 elif value:
                     available_count += 1
                     issue = validate_field(f, str(len(value)), value, mti, scheme)
-                    if not issue:
+
+                    # Special case: DE 100 — always show actual numeric LLVAR
+                    if f == "100":
                         mandatory_data.append({
-                            "Field": f"DE {f}",
-                            "Value": value,
-                            "Validation": "✅ Passed"
+                            "Field": "DE 100",
+                            "Value": value,  # e.g. "300302" from trace file
+                            "Validation": "✅ Passed" if not issue else f"❌ {issue}"
                         })
-                        passed_count += 1
+                        if not issue:
+                            passed_count += 1
+                        else:
+                            failed_count += 1
+                            errors.append({"Field": f, "Value": value, "Issue": issue})
                     else:
-                        mandatory_data.append({
-                            "Field": f"DE {f}",
-                            "Value": value,
-                            "Validation": f"❌ {issue}"
-                        })
-                        failed_count += 1
-                        errors.append({"Field": f, "Value": value, "Issue": issue})
+                        if not issue:
+                            mandatory_data.append({
+                                "Field": f"DE {f}",
+                                "Value": value,
+                                "Validation": "✅ Passed"
+                            })
+                            passed_count += 1
+                        else:
+                            mandatory_data.append({
+                                "Field": f"DE {f}",
+                                "Value": value,
+                                "Validation": f"❌ {issue}"
+                            })
+                            failed_count += 1
+                            errors.append({"Field": f, "Value": value, "Issue": issue})
 
                 else:
                     missing_count += 1
@@ -226,7 +240,7 @@ if uploaded_files:
             )
 
             if failed_count > 0:
-                mtis_with_errors += 1
+		mtis_with_errors += 1
             else:
                 mtis_clean += 1
 
@@ -246,3 +260,4 @@ if uploaded_files:
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
             f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )
+		

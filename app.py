@@ -27,13 +27,11 @@ def validate_field(field_num, length, value, mti, scheme):
         if not value:
             return f"Missing mandatory field {field_num}"
 
-    # DE 42
     if field_num == "42":
         if not value.strip():
             return f"Missing mandatory field {field_num}"
         return None
 
-    # DE 22
     if field_num == "22":
         if not value or not value.isdigit():
             return "Invalid format: expected numeric"
@@ -41,7 +39,6 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Invalid length: expected 3 or 4, got {len(value)}"
         return None
 
-    # DE 100 — Ghana spec (numeric LLVAR)
     if field_num == "100":
         if not value.strip():
             return "Missing mandatory field 100"
@@ -87,8 +84,8 @@ if uploaded_files:
         current_message = None
         nested_field = None
         nested_data = {}
-        debug_log = []       # unmatched lines
-        nested_debug = []    # nested tag=value details for DE 55, 62, 63
+        debug_log = []
+        nested_debug = []
 
         for line_num, line in enumerate(uploaded_file, 1):
             try:
@@ -97,7 +94,6 @@ if uploaded_files:
                 line = line.decode("latin-1")
             line = line.strip()
 
-            # Start of new message
             if "M.T.I" in line:
                 mti_match = re.search(r"\[(\d+)\]", line)
                 if mti_match:
@@ -110,14 +106,12 @@ if uploaded_files:
                 continue
 
             if current_message:
-                # Nested field start — don't assign yet
                 fld_match = nested_start_pattern.search(line)
                 if fld_match:
                     nested_field = str(int(fld_match.group(1)))
                     nested_data = {}
                     continue
 
-                # Nested line — assign only if tags exist
                 if nested_field and line.startswith(">"):
                     tag_match = nested_line_pattern.search(line)
                     if tag_match:
@@ -126,11 +120,9 @@ if uploaded_files:
                         current_message["fields"][nested_field] = nested_data
                     continue
 
-                # Reset nested field
                 if "FLD" in line and not line.startswith(">"):
                     nested_field = None
 
-                # Regular field
                 match = fld_pattern.search(line)
                 if match:
                     field_num, length, value = match.groups()
@@ -140,10 +132,9 @@ if uploaded_files:
                     debug_log.append({
                         "Line #": line_num,
                         "Content": line,
-                        "Reason": "No regex match"
+                        "Reason": "No regex match for field"
                     })
 
-        # MTI counts
         mti_counts = {}
         for msg in messages:
             mti = msg["mti"]

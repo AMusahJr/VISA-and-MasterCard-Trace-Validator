@@ -88,7 +88,7 @@ if uploaded_files:
         nested_field = None
         nested_data = {}
         debug_log = []       # unmatched lines
-        nested_debug = []    # NEW: nested tag=value details
+        nested_debug = []    # nested tag=value details for DE 55, 62, 63
 
         for line_num, line in enumerate(uploaded_file, 1):
             try:
@@ -182,31 +182,42 @@ if uploaded_files:
                 value = field_values.get(f)
 
                 if isinstance(value, dict):
-                    # NEW: log nested tags separately
-                    if value:
-                        for k, v in value.items():
+                    # Only DE 55, 62, 63 have nested tags
+                    if f in ["55", "62", "63"]:
+                        if value:
+                            for k, v in value.items():
+                                nested_debug.append({
+                                    "Message": i,
+                                    "MTI": mti,
+                                    "Field": f"DE {f}",
+                                    "Tag": k,
+                                    "Value": v
+                                })
+                        else:
                             nested_debug.append({
                                 "Message": i,
                                 "MTI": mti,
                                 "Field": f"DE {f}",
-                                "Tag": k,
-                                "Value": v
+                                "Tag": "(none)",
+                                "Value": "(no tags found)"
                             })
-                    else:
-                        nested_debug.append({
-                            "Message": i,
-                            "MTI": mti,
+                        mandatory_data.append({
                             "Field": f"DE {f}",
-                            "Tag": "(none)",
-                            "Value": "(no tags found)"
+                            "Value": "(nested tags logged in debug)",
+                            "Validation": "✅ Nested field captured"
                         })
-                    mandatory_data.append({
-                        "Field": f"DE {f}",
-                        "Value": "(nested tags logged in debug)",
-                        "Validation": "✅ Nested field captured"
-                    })
-                    passed_count += 1
-                    available_count += 1
+                        passed_count += 1
+                        available_count += 1
+                    else:
+                        # For other dict-like fields, just show as string
+                        display_value = str(value)
+                        mandatory_data.append({
+                            "Field": f"DE {f}",
+                            "Value": display_value,
+                            "Validation": "✅ Passed"
+                        })
+                        passed_count += 1
+                        available_count += 1
 
                 elif value:
                     available_count += 1
@@ -232,11 +243,6 @@ if uploaded_files:
                             })
                             passed_count += 1
                         else:
-                            mandatory_data.append({
-                                "Field": f"DE {f}",
-                                "Value": value,
-                                "Validation": f"❌ {issue}"
-                            })
                             failed_count += 1
                             errors.append({"Field": f, "Value": value, "Issue": issue})
 
@@ -251,7 +257,9 @@ if uploaded_files:
                     errors.append({
                         "Field": f,
                         "Value": "❌ Missing",
-                        "Issue": "Missing mandatory field"})
+                        "Issue": "Missing mandatory field"
+                    })
+
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
@@ -286,8 +294,8 @@ if uploaded_files:
             df_debug = pd.DataFrame(debug_log)
             st.dataframe(df_debug)
 
-        # --- Debug area for nested field details ---
+        # --- Debug area for nested field details (DE 55, 62, 63) ---
         if nested_debug:
-            st.write("### Debug Area: Nested Field Details")
+            st.write("### Debug Area: Nested Field Details (DE 55, 62, 63)")
             df_nested = pd.DataFrame(nested_debug)
             st.dataframe(df_nested)

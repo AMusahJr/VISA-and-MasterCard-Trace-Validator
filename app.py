@@ -240,9 +240,9 @@ if uploaded_files:
 
             st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
 
-				# --- Global summary for filtered MTIs ---
-				st.write("---")
-				st.success(
-					f"Global Summary (Filtered): {total_mtis} transactional messages — "
-					f"{mtis_clean} clean, {mtis_with_errors} with errors"
-				)
+        # --- Global summary for filtered MTIs ---
+        st.write("---")
+        st.success(
+            f"Global Summary (Filtered): {total_mtis} transactional messages — "
+            f"{mtis_clean} clean, {mtis_with_errors} with errors"
+        )

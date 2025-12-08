@@ -36,16 +36,16 @@ def validate_field(field_num, length, value, mti, scheme):
 
     # Special case: DE 12 — Local Transaction Time (hhmmss)
     if field_num == "12":
-        clean_value = value.replace(":", "")
-        if not clean_value.isdigit() or len(clean_value) != 6:
-            return f"Invalid format/length: expected hhmmss (6 digits), got {value}"
+        clean_value = re.sub(r"\D", "", value)  # remove all non-digits
+        if len(clean_value) != 6:
+            return f"Invalid length: expected 6, got {len(clean_value)} (raw {value})"
         return None
 
     # Special case: DE 13 — Local Transaction Date (MMDD)
     if field_num == "13":
-        clean_value = value.replace(":", "")
-        if not clean_value.isdigit() or len(clean_value) != 4:
-            return f"Invalid format/length: expected MMDD (4 digits), got {value}"
+        clean_value = re.sub(r"\D", "", value)
+        if len(clean_value) != 4:
+            return f"Invalid length: expected 4, got {len(clean_value)} (raw {value})"
         return None
 
     # Special case: DE 22 — numeric, length must be 4
@@ -54,6 +54,15 @@ def validate_field(field_num, length, value, mti, scheme):
             return "Invalid format: expected numeric"
         if len(value) != 4:
             return f"Invalid length: expected 4, got {len(value)}"
+        return None
+
+    # Special case: DE 25 — POS Condition Code (2 digits, pad if needed)
+    if field_num == "25":
+        clean_value = value.strip()
+        if len(clean_value) == 1:
+            clean_value = clean_value.zfill(2)  # pad to 2 digits
+        if not clean_value.isdigit() or len(clean_value) != 2:
+            return f"Invalid format/length: expected 2 digits, got {value}"
         return None
 
     # Special case: DE 100 — Receiving Institution Identification Code

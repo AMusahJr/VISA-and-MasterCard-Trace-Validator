@@ -9,9 +9,9 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)\s+\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)")
-nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
+fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+|LLVAR)\)\s*:\s*\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+|LLVAR)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?:\s*\[(.*?)\]")
 
 def detect_scheme(fields):
     """Detect whether the trace belongs to Visa or Mastercard."""
@@ -46,8 +46,8 @@ def validate_field(field_num, length, value, mti, scheme):
     if field_num == "100":
         if not value.strip():
             return "Missing mandatory field 100"
-        if not value.isdigit():
-            return "Invalid format: expected numeric"
+        if not value.isalnum():
+            return "Invalid format: expected alphanumeric"
         if len(value) > 15:
             return f"Invalid length: expected up to 15, got {len(value)}"
         return None

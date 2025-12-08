@@ -106,7 +106,8 @@ uploaded_files = st.file_uploader("Upload one or more trace files", accept_multi
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        st.subheader(f"Results for {uploaded_file.name}", key=f"subheader_{uploaded_file.name}")
+        # Display only (no key needed)
+        st.subheader(f"Results for {uploaded_file.name}")
 
         messages = []
         current_message = None
@@ -172,7 +173,7 @@ if uploaded_files:
         df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
         st.dataframe(df_counts, key=f"counts_{uploaded_file.name}")
 
-        # Multi-select filter
+        # Multi-select filter (widget → needs key)
         mti_options = sorted(mti_counts.keys())
         selected_mtis = st.multiselect(
             "Select one or more MTIs to view",

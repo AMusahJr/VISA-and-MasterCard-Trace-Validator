@@ -8,9 +8,9 @@ with open("iso8583_ghana_only.json") as f:
     spec = json.load(f)
 data_elements = spec["data_elements"]
 
-fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+|LLVAR)\)\s*:\s*\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+|LLVAR)\)")
-nested_line_pattern = re.compile(r"\((.*?)\).*?:\s*\[(.*?)\]")
+fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*(?::)?\s*\((\d+|LLVAR)\)\s*(?::)?\s*\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*(?::)?\s*\((\d+|LLVAR)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?(?::)?\s*\[(.*?)\]")
 
 def detect_scheme(fields):
     """Detect whether the trace belongs to Visa or Mastercard."""

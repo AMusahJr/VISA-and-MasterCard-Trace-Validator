@@ -14,11 +14,7 @@ nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def detect_scheme(fields):
-    """
-    Detect whether the trace belongs to Visa or Mastercard.
-    - If DE 126 is present → Mastercard (since Visa doesn't use DE 126).
-    - Else default to Visa.
-    """
+    """Detect whether the trace belongs to Visa or Mastercard."""
     if "126" in fields:
         return "Mastercard"
     return "Visa"
@@ -71,20 +67,6 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Invalid response code: {value}"
     return None
 
-    expected_length = rule["Length"]
-    if expected_length.isdigit():
-        if len(value) != int(expected_length):
-            return f"Invalid length: expected {expected_length}, got {len(value)}"
-    fmt = rule["Format"]
-    if fmt == "n" and not value.isdigit():
-        return f"Invalid format: expected numeric"
-    if fmt == "an" and not value.isalnum():
-        return f"Invalid format: expected alphanumeric"
-    if field_num == "39":
-        if value not in ["00", "01", "02"]:
-            return f"Invalid response code: {value}"
-    return None
-
 def get_mandatory_fields(mti):
     mandatory = []
     for field_num, rule in data_elements.items():
@@ -122,7 +104,6 @@ if uploaded_files:
                 if mti_match:
                     current_mti = mti_match.group(1)
                     current_message = {"mti": current_mti, "fields": {}}
-                    # Store MTI as a pseudo-field for validation
                     current_message["fields"]["MTI"] = current_mti
                     messages.append(current_message)
                     nested_field = None
@@ -155,9 +136,9 @@ if uploaded_files:
                 # Regular field
                 match = fld_pattern.search(line)
                 if match:
-    		    field_num, length, value = match.groups()
-    		    normalized = str(int(field_num))
-    		    current_message["fields"][normalized] = value.strip()
+                    field_num, length, value = match.groups()
+                    normalized = str(int(field_num))
+                    current_message["fields"][normalized] = value.strip()
 
         # MTI counts
         mti_counts = {}
@@ -228,7 +209,6 @@ if uploaded_files:
                         "Issue": "Missing mandatory field"
                     })
 
-            # ✅ Correct indentation here
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
@@ -241,6 +221,7 @@ if uploaded_files:
                 mtis_clean += 1
 
             df_mandatory = pd.DataFrame(mandatory_data)
+
             def highlight_validation(val):
                 if "✅" in val:
                     return "background-color: #d4edda; color: #155724"

@@ -9,9 +9,9 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+|LLVAR)\)\s*:\s*\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*:\s*\((\d+|LLVAR)\)")
-nested_line_pattern = re.compile(r"\((.*?)\).*?:\s*\[(.*?)\]")
+fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)\s+\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def detect_scheme(fields):
     """Detect whether the trace belongs to Visa or Mastercard."""
@@ -34,12 +34,12 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Missing mandatory field {field_num}"
         return None
 
-    # Special case: DE 22 — numeric, length 3 or 4
+    # Special case: DE 22 — numeric, length must be 4
     if field_num == "22":
         if not value or not value.isdigit():
             return "Invalid format: expected numeric"
-        if len(value) not in (3, 4):
-            return f"Invalid length: expected 3 or 4, got {len(value)}"
+        if len(value) != 4:
+            return f"Invalid length: expected 4, got {len(value)}"
         return None
 
     # Special case: DE 100 — Receiving Institution Identification Code

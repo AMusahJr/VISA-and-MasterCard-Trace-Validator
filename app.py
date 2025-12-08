@@ -19,7 +19,7 @@ def detect_scheme(fields):
         return "Mastercard"
     return "Visa"
 
-def validate_field(field_num, length, value, mti, scheme):
+def validate_field(field_num, length, value, mti, scheme, field_values=None):
     rule = data_elements.get(field_num)
     if not rule:
         return None
@@ -28,7 +28,7 @@ def validate_field(field_num, length, value, mti, scheme):
         if not value:
             return f"Missing mandatory field {field_num}"
 
-    # Special case: DE 42
+    # Special case: DE 42 — Card Acceptor ID
     if field_num == "42":
         if not value.strip():
             return f"Missing mandatory field {field_num}"
@@ -64,6 +64,26 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Invalid format/length: expected 2 digits, got {value}"
         return None
 
+    # Special case: DE 38 — Authorization Identification Response
+    if field_num == "38":
+        if scheme == "Visa":
+            rc = None
+            if field_values and "39" in field_values:
+                rc = field_values["39"]
+            # Visa: mandatory only if approved response
+            if mti in ["0210", "0230", "0430"] and rc == "00":
+                if not value or len(value) != 6 or not value.isalnum():
+                    return f"Invalid DE 38 for Visa: must be 6 alphanumeric chars in approved responses (raw {value})"
+            # Declines may omit DE 38 → no error
+            return None
+        elif scheme == "Mastercard":
+            # Mastercard: mandatory in all responses
+            if not value or len(value) != 6:
+                return f"Invalid DE 38 for Mastercard: must be 6 chars (raw {value})"
+            if not value.isalnum():
+                return f"Invalid DE 38 for Mastercard: must be alphanumeric/numeric (raw {value})"
+            return None
+
     # Special case: DE 100 — Receiving Institution Identification Code
     if field_num == "100":
         if not value.strip():
@@ -89,7 +109,7 @@ def validate_field(field_num, length, value, mti, scheme):
             return f"Invalid response code: {value}"
     return None
 
-def get_mandatory_fields(mti):
+def get_mandatory_fields(mti, scheme, field_values=None):
     mandatory = []
     for field_num, rule in data_elements.items():
         usage = rule.get("Usage", {})
@@ -97,9 +117,19 @@ def get_mandatory_fields(mti):
             # Special rule: DE 126 only mandatory for Mastercard response MTIs
             if field_num == "126" and mti not in ["0210", "0110", "0430"]:
                 continue
+
+            # Special rule: DE 38 (Authorization Identification Response)
+            if field_num == "38":
+                if scheme == "Visa":
+                    # Visa: mandatory only if approved response (RC=00)
+                    rc = field_values.get("39") if field_values else None
+                    if rc != "00":
+                        continue  # skip DE 38 for Visa declines
+                elif scheme == "Mastercard":
+                    # Mastercard: mandatory in all responses
+                    pass  # always include
             mandatory.append(field_num)
     return mandatory
-
 st.title("VISA and MasterCard Trace Validator")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
@@ -199,7 +229,7 @@ if uploaded_files:
 
             total_mtis += 1
             st.write(f"### Message {i} (MTI {mti}, Scheme {scheme}) Validation")
-            mandatory_fields = get_mandatory_fields(mti)
+            mandatory_fields = get_mandatory_fields(mti, scheme, field_values)
             mandatory_data = []
             passed_count, failed_count = 0, 0
             available_count, missing_count = 0, 0

@@ -49,13 +49,13 @@ def validate_field(field_num, length, value, mti, scheme):
 
     # Special case: DE 100 — Visa vs Mastercard
     if field_num == "100":
-		if not value.strip():
-			return "Missing mandatory field 100"
-		if not value.isdigit():
-			return "Invalid format: expected numeric"
-		if len(value) > 15:
-			return f"Invalid length: expected up to 15, got {len(value)}"
-		return None
+        if not value.strip():
+	    return "Missing mandatory field 100"
+	if not value.isdigit():
+	    return "Invalid format: expected numeric"
+        if len(value) > 15:
+	    return f"Invalid length: expected up to 15, got {len(value)}"
+        return None
 
     expected_length = rule["Length"]
     if expected_length.isdigit():

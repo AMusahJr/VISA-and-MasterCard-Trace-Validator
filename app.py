@@ -36,35 +36,30 @@ def validate_field(field_num, length, value, mti, scheme):
 
     # Special case: DE 12 — Local Transaction Time (hhmmss)
     if field_num == "12":
-        clean_value = re.sub(r"\D", "", value)  # remove all non-digits
-        if len(clean_value) < 6:
-            clean_value = clean_value.ljust(6, "0")  # pad to 6 digits
+        clean_value = re.sub(r"\D", "", value)[-6:]  # take last 6 digits
         if not clean_value.isdigit() or len(clean_value) != 6:
             return f"Invalid length: expected 6, got {len(clean_value)} (raw {value})"
         return None
 
     # Special case: DE 13 — Local Transaction Date (MMDD)
     if field_num == "13":
-        clean_value = re.sub(r"\D", "", value)
-        if len(clean_value) < 4:
-            clean_value = clean_value.ljust(4, "0")  # pad to 4 digits
+        clean_value = re.sub(r"\D", "", value)[-4:]  # take last 4 digits
         if not clean_value.isdigit() or len(clean_value) != 4:
             return f"Invalid length: expected 4, got {len(clean_value)} (raw {value})"
         return None
 
-    # Special case: DE 22 — numeric, length must be 3 or 4
+    # Special case: DE 22 — POS Entry Mode (accept 3 or 4 digits)
     if field_num == "22":
-        if not value or not value.isdigit():
-            return "Invalid format: expected numeric"
-        if len(value) not in (3, 4):
-            return f"Invalid length: expected 3 or 4, got {len(value)}"
+        clean_value = value.strip()[:4]  # take first 3–4 digits
+        if not clean_value.isdigit() or len(clean_value) not in (3, 4):
+            return f"Invalid length: expected 3 or 4, got {len(clean_value)} (raw {value})"
         return None
 
     # Special case: DE 25 — POS Condition Code (2 digits, pad if needed)
     if field_num == "25":
-        clean_value = value.strip()
+        clean_value = value.strip()[:2]  # take first 2 digits
         if len(clean_value) == 1:
-            clean_value = clean_value.zfill(2)  # pad to 2 digits
+            clean_value = clean_value.zfill(2)
         if not clean_value.isdigit() or len(clean_value) != 2:
             return f"Invalid format/length: expected 2 digits, got {value}"
         return None

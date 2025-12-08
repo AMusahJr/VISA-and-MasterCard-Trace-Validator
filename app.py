@@ -9,8 +9,8 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)\s+\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)")
+fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)\s+\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+|LLVAR)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def detect_scheme(fields):
@@ -155,9 +155,9 @@ if uploaded_files:
                 # Regular field
                 match = fld_pattern.search(line)
                 if match:
-                    field_num, length, value = match.groups()
-                    normalized = str(int(field_num))
-                    current_message["fields"][normalized] = value.strip()
+    		    field_num, length, value = match.groups()
+    		    normalized = str(int(field_num))
+    		    current_message["fields"][normalized] = value.strip()
 
         # MTI counts
         mti_counts = {}

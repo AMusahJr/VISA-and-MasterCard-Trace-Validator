@@ -106,7 +106,7 @@ uploaded_files = st.file_uploader("Upload one or more trace files", accept_multi
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        st.subheader(f"Results for {uploaded_file.name}")
+        st.subheader(f"Results for {uploaded_file.name}", key=f"subheader_{uploaded_file.name}")
 
         messages = []
         current_message = None
@@ -170,11 +170,16 @@ if uploaded_files:
 
         st.write("### MTI Counts in File")
         df_counts = pd.DataFrame(list(mti_counts.items()), columns=["MTI", "Count"])
-        st.dataframe(df_counts)
+        st.dataframe(df_counts, key=f"counts_{uploaded_file.name}")
 
         # Multi-select filter
         mti_options = sorted(mti_counts.keys())
-        selected_mtis = st.multiselect("Select one or more MTIs to view", mti_options, default=mti_options)
+        selected_mtis = st.multiselect(
+            "Select one or more MTIs to view",
+            mti_options,
+            default=mti_options,
+            key=f"mtiselect_{uploaded_file.name}"
+        )
 
         filtered_messages = [msg for msg in messages if msg["mti"] in selected_mtis]
 
@@ -234,7 +239,8 @@ if uploaded_files:
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
-                f"{passed_count} passed, {failed_count} failed"
+                f"{passed_count} passed, {failed_count} failed",
+                key=f"summary_{uploaded_file.name}_{i}"
             )
 
             if failed_count > 0:
@@ -250,11 +256,15 @@ if uploaded_files:
                 else:
                     return "background-color: #f8d7da; color: #721c24"
 
-            st.dataframe(df_mandatory.style.map(highlight_validation, subset=["Validation"]))
+            st.dataframe(
+                df_mandatory.style.map(highlight_validation, subset=["Validation"]),
+                key=f"mandatory_{uploaded_file.name}_{i}"
+            )
 
         # --- Global summary for filtered MTIs ---
         st.write("---")
         st.success(
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
-            f"{mtis_clean} clean, {mtis_with_errors} with errors"
+            f"{mtis_clean} clean, {mtis_with_errors} with errors",
+            key=f"global_{uploaded_file.name}"
         )

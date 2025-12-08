@@ -100,7 +100,7 @@ def get_mandatory_fields(mti):
             mandatory.append(field_num)
     return mandatory
 
-st.title("ISO8583 Trace File Validator (Visa vs Mastercard aware)")
+st.title("VISA and MasterCard Trace Validator")
 
 uploaded_files = st.file_uploader("Upload one or more trace files", accept_multiple_files=True)
 

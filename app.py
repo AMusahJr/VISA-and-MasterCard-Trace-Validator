@@ -42,19 +42,19 @@ def validate_field(field_num, length, value, mti, scheme):
     # Special case: DE 22 — numeric, length 3 or 4, leading zeros allowed
     if field_num == "22":
         if not value or not value.isdigit():
-            return "Invalid format: expected numeric"
+	     return "Invalid format: expected numeric"
         if len(value) not in (3, 4):
-            return f"Invalid length: expected 3 or 4, got {len(value)}"
-        return None
+	     return f"Invalid length: expected 3 or 4, got {len(value)}"
+	return None
 
     # Special case: DE 100 — Visa vs Mastercard
     if field_num == "100":
         if not value.strip():
-	    return "Missing mandatory field 100"
+	     return "Missing mandatory field 100"
 	if not value.isdigit():
-	    return "Invalid format: expected numeric"
+	     return "Invalid format: expected numeric"
         if len(value) > 15:
-	    return f"Invalid length: expected up to 15, got {len(value)}"
+	     return f"Invalid length: expected up to 15, got {len(value)}"
         return None
 
     expected_length = rule["Length"]

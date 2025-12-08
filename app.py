@@ -106,7 +106,7 @@ uploaded_files = st.file_uploader("Upload one or more trace files", accept_multi
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        # Display only (no key needed)
+        # Display only (no key allowed here)
         st.subheader(f"Results for {uploaded_file.name}")
 
         messages = []
@@ -240,8 +240,7 @@ if uploaded_files:
             st.info(
                 f"Summary for Message {i} (MTI {mti}, Scheme {scheme}): {len(mandatory_fields)} mandatory fields — "
                 f"{available_count} available, {missing_count} missing; "
-                f"{passed_count} passed, {failed_count} failed",
-                key=f"summary_{uploaded_file.name}_{i}"
+                f"{passed_count} passed, {failed_count} failed"
             )
 
             if failed_count > 0:
@@ -266,6 +265,5 @@ if uploaded_files:
         st.write("---")
         st.success(
             f"Global Summary (Filtered): {total_mtis} transactional messages — "
-            f"{mtis_clean} clean, {mtis_with_errors} with errors",
-            key=f"global_{uploaded_file.name}"
+            f"{mtis_clean} clean, {mtis_with_errors} with errors"
         )

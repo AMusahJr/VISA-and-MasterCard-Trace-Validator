@@ -8,9 +8,10 @@ with open("iso8583_ghana_only.json") as f:
     spec = json.load(f)
 data_elements = spec["data_elements"]
 
-fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*(?::)?\s*\((\d+|LLVAR)\)\s*(?::)?\s*\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*(?::)?\s*\((\d+|LLVAR)\)")
-nested_line_pattern = re.compile(r"\((.*?)\).*?(?::)?\s*\[(.*?)\]")
+# Regex patterns
+fld_pattern = re.compile(r"FLD\s*\((\d+)\)\s*(?::|\s*)\s*\((\d+|LLVAR)\)\s*(?::|\s*)\s*\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s*\((\d+)\)\s*(?::|\s*)\s*\((\d+|LLVAR)\)")
+nested_line_pattern = re.compile(r"\((.*?)\).*?(?::|\s*)\s*\[(.*?)\]")
 
 def detect_scheme(fields):
     """Detect whether the trace belongs to Visa or Mastercard."""
@@ -31,6 +32,20 @@ def validate_field(field_num, length, value, mti, scheme):
     if field_num == "42":
         if not value.strip():
             return f"Missing mandatory field {field_num}"
+        return None
+
+    # Special case: DE 12 — Local Transaction Time (hhmmss)
+    if field_num == "12":
+        clean_value = value.replace(":", "")
+        if not clean_value.isdigit() or len(clean_value) != 6:
+            return f"Invalid format/length: expected hhmmss (6 digits), got {value}"
+        return None
+
+    # Special case: DE 13 — Local Transaction Date (MMDD)
+    if field_num == "13":
+        clean_value = value.replace(":", "")
+        if not clean_value.isdigit() or len(clean_value) != 4:
+            return f"Invalid format/length: expected MMDD (4 digits), got {value}"
         return None
 
     # Special case: DE 22 — numeric, length must be 4

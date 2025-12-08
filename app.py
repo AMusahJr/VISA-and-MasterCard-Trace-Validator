@@ -9,8 +9,8 @@ with open("iso8583_ghana_only.json") as f:
 data_elements = spec["data_elements"]
 
 # Regex patterns
-fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)\s+\[(.*?)\]")
-nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((\d+)\)")
+fld_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)\s+\[(.*?)\]")
+nested_start_pattern = re.compile(r"FLD\s+\((\d+)\)\s+\((?:\d+|LLVAR)\)")
 nested_line_pattern = re.compile(r"\((.*?)\).*?:\s+\[(.*?)\]")
 
 def detect_scheme(fields):
@@ -36,26 +36,40 @@ def validate_field(field_num, length, value, mti, scheme):
     if field_num == "42":
         if not value.strip():
             return f"Missing mandatory field {field_num}"
-        else:
-            return None
+        return None
 
-    # Special case: DE 22 — numeric, length 3 or 4, leading zeros allowed
+    # Special case: DE 22 — numeric, length 3 or 4
     if field_num == "22":
         if not value or not value.isdigit():
-	     return "Invalid format: expected numeric"
+            return "Invalid format: expected numeric"
         if len(value) not in (3, 4):
-	     return f"Invalid length: expected 3 or 4, got {len(value)}"
-	return None
+            return f"Invalid length: expected 3 or 4, got {len(value)}"
+        return None
 
-    # Special case: DE 100 — Visa vs Mastercard
+    # Special case: DE 100 — Receiving Institution Identification Code
     if field_num == "100":
         if not value.strip():
-	     return "Missing mandatory field 100"
-	if not value.isdigit():
-	     return "Invalid format: expected numeric"
+            return "Missing mandatory field 100"
+        if not value.isdigit():
+            return "Invalid format: expected numeric"
         if len(value) > 15:
-	     return f"Invalid length: expected up to 15, got {len(value)}"
+            return f"Invalid length: expected up to 15, got {len(value)}"
         return None
+
+    # Generic validation
+    expected_length = rule["Length"]
+    if expected_length.isdigit():
+        if len(value) != int(expected_length):
+            return f"Invalid length: expected {expected_length}, got {len(value)}"
+    fmt = rule["Format"]
+    if fmt == "n" and not value.isdigit():
+        return f"Invalid format: expected numeric"
+    if fmt == "an" and not value.isalnum():
+        return f"Invalid format: expected alphanumeric"
+    if field_num == "39":
+        if value not in ["00", "01", "02"]:
+            return f"Invalid response code: {value}"
+    return None
 
     expected_length = rule["Length"]
     if expected_length.isdigit():

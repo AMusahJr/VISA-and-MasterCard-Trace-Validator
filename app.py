@@ -230,6 +230,7 @@ if uploaded_files:
             total_mtis += 1
             st.write(f"### Message {i} (MTI {mti}, Scheme {scheme}) Validation")
             mandatory_fields = get_mandatory_fields(mti, scheme, field_values)
+	    mandatory_fields = [f for f in mandatory_fields if f in field_values]
             mandatory_data = []
             passed_count, failed_count = 0, 0
             available_count, missing_count = 0, 0
